@@ -611,6 +611,21 @@
       }
     }
 
+    async function prefillLatestBatch() {
+      try {
+        const res = await fetch("/api/max-batch");
+        if (!res.ok) return; // silently ignore if none
+
+        const data = await res.json();
+        if (typeof data.maxBatch === "number") {
+          batchInput.value = data.maxBatch;
+        }
+      } catch (err) {
+        console.error("Failed to prefill batch:", err);
+      }
+    }
+
+
     // ---- Theme handling ----
     function applyThemeFromPreference() {
       const stored = localStorage.getItem("graderTheme");
@@ -798,6 +813,7 @@
 
     // Initialize theme on load
     applyThemeFromPreference();
+    prefillLatestBatch();
   </script>
 </body>
 </html>
