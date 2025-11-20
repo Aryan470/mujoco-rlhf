@@ -45,10 +45,15 @@ async function ensureResults(batchId) {
     if (err.code === "ENOENT") {
       results = {
         batch_id: batch.batch_id,
-        pairs: batch.pairs.map((p) => ({
-          ...p,
-          grade: "ungraded",
-        })),
+        pairs: batch.pairs.map((p, idx) => {
+          const pairId = typeof p.pair_id === "number" ? p.pair_id : idx;
+          const grader = ["Aryan", "Reina", "Beto"][pairId % 3];
+          return {
+            ...p,
+            grade: "ungraded",
+            grader
+          };
+        }),
       };
       await fs.writeFile(resultsFile, JSON.stringify(results, null, 2));
     } else {
