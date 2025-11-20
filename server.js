@@ -7,8 +7,8 @@ const app = express();
 const PORT = 6006;
 
 // ---- CONFIG ----
-const DATA_DIR = path.join(__dirname, "data"); // where batch_i.json live
-const CLIPS_DIR = path.join(__dirname, "example_clip_pairs"); // where videos live
+const DATA_DIR = path.join(__dirname, "data/metadata"); // where batch_i.json live
+const CLIPS_DIR = path.join(__dirname, "data"); // where videos live
 
 app.use(express.json());
 
@@ -16,8 +16,8 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // Serve data and clip folders statically so the browser can load JSON/videos
-app.use("/data", express.static(DATA_DIR));
-app.use("/example_clip_pairs", express.static(CLIPS_DIR));
+app.use("/data/metadata", express.static(DATA_DIR));
+app.use("/data", express.static(CLIPS_DIR));
 
 // Utility: ensure batch_i_results.json exists and is up-to-date
 async function ensureResults(batchId) {
