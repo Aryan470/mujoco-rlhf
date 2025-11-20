@@ -4,93 +4,238 @@
   <meta charset="UTF-8" />
   <title>Batch Pair Grader</title>
   <style>
+    :root {
+      --bg-color: #f5f5f5;
+      --text-color: #111111;
+      --panel-bg: #ffffff;
+      --panel-border: #dddddd;
+      --accent-color: #007acc;
+      --accent-soft: #e6f3ff;
+      --tab-graded-bg: #e7ffe7;
+      --tab-ungraded-bg: #ffecec;
+      --error-color: #b00020;
+      --success-color: #006400;
+      --unsaved-color: #ff9800;
+      --button-bg: #f0f0f0;
+      --button-border: #cccccc;
+      --button-hover-bg: #e0e0e0;
+      --button-text-color: #111111;
+    }
+
+    body.dark {
+      --bg-color: #121212;
+      --text-color: #f5f5f5;
+      --panel-bg: #1e1e1e;
+      --panel-border: #333333;
+      --accent-color: #4ea1ff;
+      --accent-soft: #1f2933;
+      --tab-graded-bg: #1e3a2f;
+      --tab-ungraded-bg: #402020;
+      --button-bg: #2a2a2a;
+      --button-border: #444444;
+      --button-hover-bg: #3a3a3a;
+      --button-text-color: #f5f5f5;
+    }
+
     body {
-      font-family: sans-serif;
-      margin: 20px;
-      background: #f5f5f5;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: var(--bg-color);
+      color: var(--text-color);
     }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      gap: 8px;
+    }
+
     h1 {
-      margin-bottom: 0.5rem;
+      margin: 0;
     }
+
+    button,
+    input,
+    select {
+      font-family: inherit;
+    }
+
     .config-panel, .main-panel {
-      background: white;
+      background: var(--panel-bg);
       padding: 16px;
       border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
       margin-bottom: 16px;
     }
+
+    .main-panel.unsaved {
+      box-shadow: 0 0 0 2px rgba(255, 152, 0, 0.7);
+    }
+
     .config-panel label {
       margin-right: 8px;
     }
     .config-panel select, .config-panel input {
       margin-right: 12px;
     }
+
     .pair-tabs {
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
       margin-bottom: 12px;
     }
+
     .pair-tab {
       padding: 4px 8px;
       border-radius: 4px;
       cursor: pointer;
-      border: 1px solid #ccc;
+      border: 1px solid var(--panel-border);
       font-size: 0.85rem;
+      background: var(--button-bg);
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease;
     }
+
+    .pair-tab:hover {
+      background: var(--button-hover-bg);
+    }
+
     .pair-tab.active {
-      border-color: #333;
-      font-weight: bold;
+      border-color: var(--accent-color);
+      font-weight: 600;
+      transform: translateY(-1px);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
+
     .pair-tab.ungraded {
-      background: #ffecec;
+      background: var(--tab-ungraded-bg);
     }
+
     .pair-tab.graded {
-      background: #e7ffe7;
+      background: var(--tab-graded-bg);
     }
+
     .videos-container {
       display: flex;
       gap: 16px;
       margin-bottom: 12px;
       flex-wrap: wrap;
     }
+
     .video-box {
       flex: 1 1 300px;
       min-width: 260px;
     }
+
     video {
       width: 100%;
       max-height: 240px;
       background: #000;
     }
+
     .video-error {
-      color: #b00020;
+      color: var(--error-color);
       font-size: 0.85rem;
       margin-top: 4px;
     }
+
     .grade-options {
-      margin-bottom: 12px;
+      margin-bottom: 6px;
+      padding: 8px;
+      border-radius: 6px;
+      background: var(--accent-soft);
     }
+
+    .grade-options strong {
+      display: inline-block;
+      margin-bottom: 4px;
+    }
+
+    .grade-options div {
+      margin-bottom: 2px;
+    }
+
     .grade-options label {
       margin-right: 12px;
+      cursor: pointer;
     }
+
+    .nav-buttons {
+      margin-top: 8px;
+      margin-bottom: 4px;
+    }
+
     .nav-buttons button {
       margin-right: 8px;
+      padding: 6px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--button-border);
+      background: var(--button-bg);
+      color: var(--button-text-color);
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
     }
+
+    .nav-buttons button:hover:not(:disabled) {
+      background: var(--button-hover-bg);
+    }
+
+    .nav-buttons button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
     .status {
-      margin-top: 8px;
+      margin-top: 4px;
       font-size: 0.9rem;
     }
+
     .status.error {
-      color: #b00020;
+      color: var(--error-color);
     }
+
     .status.success {
-      color: #006400;
+      color: var(--success-color);
+    }
+
+    .status.unsaved {
+      color: var(--unsaved-color);
+    }
+
+    #theme-toggle {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--button-border);
+      background: var(--button-bg);
+      color: var(--button-text-color);
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    #theme-toggle:hover {
+      background: var(--button-hover-bg);
+    }
+
+    small kbd {
+      border: 1px solid var(--button-border);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 0.75rem;
+      background: var(--button-bg);
+      margin-left: 2px;
     }
   </style>
 </head>
 <body>
-  <h1>Batch Pair Grader</h1>
+  <div class="header">
+    <h1>Batch Pair Grader</h1>
+    <button id="theme-toggle" type="button">🌙 Dark mode</button>
+  </div>
 
   <div class="config-panel">
     <form id="config-form">
@@ -113,6 +258,13 @@
   <div class="main-panel" id="main-panel" style="display:none;">
     <h2 id="batch-title"></h2>
     <div id="assignment-info"></div>
+    <div style="font-size: 0.85rem; margin: 4px 0 10px;">
+      Keyboard: 
+      <kbd>s</kbd>=Save, 
+      <kbd>n</kbd>=Save &amp; Next, 
+      <kbd>←</kbd>/<kbd>→</kbd>=Prev/Next, 
+      <kbd>1</kbd>–<kbd>5</kbd>=grade
+    </div>
 
     <div class="pair-tabs" id="pair-tabs"></div>
 
@@ -135,19 +287,31 @@
 
       <div class="grade-options">
         <strong>Grade:</strong>
-        <label><input type="radio" name="grade" value="pair1_better"> Pair 1 better</label>
-        <label><input type="radio" name="grade" value="pair2_better"> Pair 2 better</label>
-        <label><input type="radio" name="grade" value="similar"> Similar</label>
-        <label><input type="radio" name="grade" value="not_comparable"> Not comparable</label>
-        <label><input type="radio" name="grade" value="ungraded"> Ungraded</label>
+
+        <!-- Line 1: Pair 1 better, Similar, Pair 2 better -->
+        <div>
+          <label><input type="radio" name="grade" value="pair1_better"> Pair 1 better</label>
+          <label><input type="radio" name="grade" value="similar"> Similar</label>
+          <label><input type="radio" name="grade" value="pair2_better"> Pair 2 better</label>
+        </div>
+
+        <!-- Line 2: Not comparable, Ungraded -->
+        <div style="margin-top: 4px;">
+          <label><input type="radio" name="grade" value="not_comparable"> Not comparable</label>
+          <label><input type="radio" name="grade" value="ungraded"> Ungraded</label>
+        </div>
       </div>
+
+      
 
       <div class="nav-buttons">
         <button id="back-button" type="button">&laquo; Previous</button>
+        <button id="save-only-button" type="button">Save</button>
         <button id="save-button" type="button">Save &amp; Next</button>
         <button id="forward-button" type="button">Next &raquo;</button>
       </div>
 
+      <div id="unsaved-indicator" class="status"></div>
       <div id="main-status" class="status"></div>
     </div>
   </div>
@@ -172,9 +336,12 @@
     const video2PathSpan = document.getElementById("video2-path");
 
     const backButton = document.getElementById("back-button");
+    const saveOnlyButton = document.getElementById("save-only-button");
     const saveButton = document.getElementById("save-button");
     const forwardButton = document.getElementById("forward-button");
     const mainStatus = document.getElementById("main-status");
+    const unsavedIndicator = document.getElementById("unsaved-indicator");
+    const themeToggle = document.getElementById("theme-toggle");
 
     let currentUser = null;
     let currentUserIndex = null; // 0=Aryan,1=Reina,2=Beto
@@ -183,6 +350,9 @@
     let allPairs = []; // full batch_i_results.pairs
     let assignedPairs = []; // filtered for current user
     let currentAssignedIdx = 0; // index in assignedPairs
+
+    let hasUnsavedChanges = false;
+    let suppressStatusClear = false;
 
     function userToIndex(user) {
       if (user === "Aryan") return 0;
@@ -196,6 +366,8 @@
       configStatus.className = "status";
       mainStatus.textContent = "";
       mainStatus.className = "status";
+      unsavedIndicator.textContent = "";
+      unsavedIndicator.className = "status";
 
       try {
         const res = await fetch(`/api/batch/${batchId}`);
@@ -259,7 +431,10 @@
         }
         tab.textContent = `Pair ${item.id}`;
         tab.addEventListener("click", () => {
+          if (idx === currentAssignedIdx) return;
           currentAssignedIdx = idx;
+          mainStatus.textContent = "";
+          mainStatus.className = "status";
           renderTabs();
           renderCurrentPair();
         });
@@ -277,13 +452,52 @@
         return;
       }
 
-      // Use the path as-is; it should be reachable from the server static routes
       videoEl.src = `/${videoPath}`;
       videoEl.load();
 
       videoEl.onerror = () => {
         errorEl.textContent = `Error loading video: ${videoPath} (file may not exist)`;
       };
+    }
+
+    function updateUnsavedState() {
+      if (
+        currentAssignedIdx < 0 ||
+        currentAssignedIdx >= assignedPairs.length
+      ) {
+        hasUnsavedChanges = false;
+        saveOnlyButton.disabled = true;
+        saveButton.disabled = true;
+        mainPanel.classList.remove("unsaved");
+        unsavedIndicator.textContent = "";
+        unsavedIndicator.className = "status";
+        return;
+      }
+
+      const item = assignedPairs[currentAssignedIdx];
+      const p = item.pair;
+      const savedGrade = p.grade || "ungraded";
+
+      const radios = document.querySelectorAll('input[name="grade"]');
+      let currentGrade = "ungraded";
+      radios.forEach((r) => {
+        if (r.checked) currentGrade = r.value;
+      });
+
+      hasUnsavedChanges = currentGrade !== savedGrade;
+
+      saveOnlyButton.disabled = !hasUnsavedChanges;
+      saveButton.disabled = !hasUnsavedChanges;
+
+      if (hasUnsavedChanges) {
+        mainPanel.classList.add("unsaved");
+        unsavedIndicator.textContent = "Unsaved changes";
+        unsavedIndicator.className = "status unsaved";
+      } else {
+        mainPanel.classList.remove("unsaved");
+        unsavedIndicator.textContent = "";
+        unsavedIndicator.className = "status";
+      }
     }
 
     function renderCurrentPair() {
@@ -299,14 +513,12 @@
 
       pairHeader.textContent = `Pair ${pairLabel}`;
 
-      // Set videos
       const v1Path = p.obs1 && p.obs1.video_path ? p.obs1.video_path : "";
       const v2Path = p.obs2 && p.obs2.video_path ? p.obs2.video_path : "";
 
       setVideoSource(video1, video1Error, video1PathSpan, v1Path);
       setVideoSource(video2, video2Error, video2PathSpan, v2Path);
 
-      // Set grade radio
       const gradeValue = p.grade || "ungraded";
       const radios = document.querySelectorAll('input[name="grade"]');
       let matched = false;
@@ -319,17 +531,18 @@
         }
       });
       if (!matched) {
-        // default to ungraded
         const ungradedRadio = document.querySelector(
           'input[name="grade"][value="ungraded"]'
         );
         if (ungradedRadio) ungradedRadio.checked = true;
       }
 
+      // Update unsaved state (will also disable save buttons if nothing changed)
+      updateUnsavedState();
+
       mainStatus.textContent = "";
       mainStatus.className = "status";
 
-      // Update buttons state
       backButton.disabled = currentAssignedIdx === 0;
       forwardButton.disabled =
         currentAssignedIdx === assignedPairs.length - 1;
@@ -360,7 +573,7 @@
         const pairIdForServer =
           typeof p.pair_id === "number"
             ? p.pair_id
-            : item.id; // fallback index-based id
+            : item.id;
 
         const res = await fetch(
           `/api/batch/${currentBatchId}/pair/${pairIdForServer}/grade`,
@@ -379,11 +592,12 @@
         p.grade = selected;
         allPairs[item.originalIndex].grade = selected;
 
+        // Refresh unsaved state + tabs
+        updateUnsavedState();
+        renderTabs();
+
         mainStatus.textContent = "Saved.";
         mainStatus.classList.add("success");
-
-        // Refresh tabs colors
-        renderTabs();
 
         if (moveNext && currentAssignedIdx < assignedPairs.length - 1) {
           currentAssignedIdx += 1;
@@ -396,6 +610,38 @@
         mainStatus.classList.add("error");
       }
     }
+
+    // ---- Theme handling ----
+    function applyThemeFromPreference() {
+      const stored = localStorage.getItem("graderTheme");
+      let dark = stored === "dark";
+      if (stored === null) {
+        // default to OS preference
+        dark = window.matchMedia &&
+               window.matchMedia("(prefers-color-scheme: dark)").matches;
+      }
+      if (dark) {
+        document.body.classList.add("dark");
+      } else {
+        document.body.classList.remove("dark");
+      }
+      updateThemeToggleLabel();
+    }
+
+    function updateThemeToggleLabel() {
+      if (document.body.classList.contains("dark")) {
+        themeToggle.textContent = "☀️ Light mode";
+      } else {
+        themeToggle.textContent = "🌙 Dark mode";
+      }
+    }
+
+    themeToggle.addEventListener("click", () => {
+      document.body.classList.toggle("dark");
+      const isDark = document.body.classList.contains("dark");
+      localStorage.setItem("graderTheme", isDark ? "dark" : "light");
+      updateThemeToggleLabel();
+    });
 
     // ---- Event listeners ----
     configForm.addEventListener("submit", (e) => {
@@ -413,6 +659,8 @@
     backButton.addEventListener("click", () => {
       if (currentAssignedIdx > 0) {
         currentAssignedIdx -= 1;
+        mainStatus.textContent = "";
+        mainStatus.className = "status";
         renderTabs();
         renderCurrentPair();
       }
@@ -421,14 +669,115 @@
     forwardButton.addEventListener("click", () => {
       if (currentAssignedIdx < assignedPairs.length - 1) {
         currentAssignedIdx += 1;
+        mainStatus.textContent = "";
+        mainStatus.className = "status";
         renderTabs();
         renderCurrentPair();
       }
     });
 
     saveButton.addEventListener("click", () => {
-      saveCurrentGrade({ moveNext: true });
+      if (!saveButton.disabled) {
+        saveCurrentGrade({ moveNext: true });
+      }
     });
+
+    saveOnlyButton.addEventListener("click", () => {
+      if (!saveOnlyButton.disabled) {
+        saveCurrentGrade({ moveNext: false });
+      }
+    });
+
+    // grade radio change => mark unsaved
+    const gradeRadios = document.querySelectorAll('input[name="grade"]');
+    gradeRadios.forEach((r) => {
+      r.addEventListener("change", () => {
+        updateUnsavedState();
+
+        // If we’re currently saving via keyboard (s/n), don’t clear the status
+        if (suppressStatusClear) return;
+
+        mainStatus.textContent = "";
+        mainStatus.className = "status";
+      });
+    });
+
+
+
+    // Keyboard shortcuts
+    // Keyboard shortcuts
+  document.addEventListener("keydown", (e) => {
+    const el = e.target;
+    const tag = el.tagName;
+    const type = el.type;
+
+    // Only block shortcuts when typing into text/number-like inputs or textareas
+    const isEditable =
+      tag === "TEXTAREA" ||
+      el.isContentEditable ||
+      (tag === "INPUT" && (type === "text" || type === "number" || type === "email" || type === "search" || type === "password" || type === "url"));
+
+    if (isEditable) return;
+
+    const key = e.key.toLowerCase();
+
+    // 1–5 => grade selection
+    const keyToGrade = {
+      "1": "pair1_better",
+      "2": "similar",
+      "3": "pair2_better",
+      "4": "not_comparable",
+      "5": "ungraded",
+    };
+    if (keyToGrade[key]) {
+      const value = keyToGrade[key];
+      const radio = document.querySelector(
+        `input[name="grade"][value="${value}"]`
+      );
+      if (radio) {
+        radio.checked = true;
+        updateUnsavedState();
+
+        // New change => clear "Saved."
+        mainStatus.textContent = "";
+        mainStatus.className = "status";
+      }
+      return;
+    }
+
+    if (key === "s") {
+      e.preventDefault();
+      if (!saveOnlyButton.disabled) {
+        suppressStatusClear = true;
+        saveCurrentGrade({ moveNext: false })
+          .finally(() => {
+            suppressStatusClear = false;
+          });
+      }
+    } else if (key === "n") {
+      e.preventDefault();
+      if (!saveButton.disabled) {
+        suppressStatusClear = true;
+        saveCurrentGrade({ moveNext: true })
+          .finally(() => {
+            suppressStatusClear = false;
+          });
+      } else if (currentAssignedIdx < assignedPairs.length - 1) {
+        // If nothing to save, just go next
+        forwardButton.click();
+      }
+    } else if (key === "arrowleft") {
+      e.preventDefault();
+      backButton.click();
+    } else if (key === "arrowright") {
+      e.preventDefault();
+      forwardButton.click();
+    }
+  });
+
+
+    // Initialize theme on load
+    applyThemeFromPreference();
   </script>
 </body>
 </html>
