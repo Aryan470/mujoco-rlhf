@@ -273,13 +273,13 @@
       <div class="videos-container">
         <div class="video-box">
           <h4>Observation 1</h4>
-          <video id="video1" controls></video>
+          <video id="video1" controls autoplay loop muted></video>
           <div id="video1-error" class="video-error"></div>
           <div><strong>Path:</strong> <span id="video1-path"></span></div>
         </div>
         <div class="video-box">
           <h4>Observation 2</h4>
-          <video id="video2" controls></video>
+          <video id="video2" controls autoplay loop muted></video>
           <div id="video2-error" class="video-error"></div>
           <div><strong>Path:</strong> <span id="video2-path"></span></div>
         </div>
@@ -772,6 +772,26 @@
     } else if (key === "arrowright") {
       e.preventDefault();
       forwardButton.click();
+    } else if (key === "q") {
+      e.preventDefault();
+      if (video1.paused) video1.play();
+      else video1.pause();
+    } else if (key === "e") {
+      e.preventDefault();
+      if (video2.paused) video2.play();
+      else video2.pause();
+    } else if (e.code === "Space") {
+      e.preventDefault();
+
+      const anyPaused = video1.paused || video2.paused;
+
+      if (anyPaused) {
+        video1.play();
+        video2.play();
+      } else {
+        video1.pause();
+        video2.pause();
+      }
     }
   });
 
