@@ -207,6 +207,41 @@
       color: var(--unsaved-color);
     }
 
+    .pipeline-panel {
+      background: var(--panel-bg);
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      margin-bottom: 16px;
+    }
+
+    .pipeline-buttons {
+      margin: 8px 0;
+    }
+
+    .pipeline-buttons button {
+      margin-right: 8px;
+      padding: 6px 10px;
+      border-radius: 4px;
+      border: 1px solid var(--button-border);
+      background: var(--button-bg);
+      color: var(--button-text-color);
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    }
+
+    .pipeline-buttons button:hover:not(:disabled) {
+      background: var(--button-hover-bg);
+    }
+
+    .pipeline-buttons button:disabled {
+      opacity: 0.5;
+      cursor: default;
+    }
+
+
     #theme-toggle {
       padding: 4px 10px;
       border-radius: 999px;
@@ -316,6 +351,19 @@
     </div>
   </div>
 
+  <div class="pipeline-panel" id="pipeline-panel" style="display:none;">
+    <h2>Batch Pipeline</h2>
+    <div id="pipeline-info" class="status"></div>
+    <div class="pipeline-buttons">
+      <button id="retrain-button" type="button" disabled>Retrain Policy</button>
+      <button id="generate-button" type="button" disabled>Generate Clips</button>
+      <button id="next-batch-button" type="button" disabled>Load Next Batch</button>
+      <button id="pipeline-refresh-button" type="button">Refresh Status</button>
+    </div>
+    <div id="pipeline-status" class="status"></div>
+  </div>
+
+
   <script>
     const configForm = document.getElementById("config-form");
     const userSelect = document.getElementById("user-select");
@@ -343,9 +391,19 @@
     const unsavedIndicator = document.getElementById("unsaved-indicator");
     const themeToggle = document.getElementById("theme-toggle");
 
+    const pipelinePanel = document.getElementById("pipeline-panel");
+    const pipelineInfo = document.getElementById("pipeline-info");
+    const pipelineStatus = document.getElementById("pipeline-status");
+    const retrainButton = document.getElementById("retrain-button");
+    const generateButton = document.getElementById("generate-button");
+    const nextBatchButton = document.getElementById("next-batch-button");
+    const pipelineRefreshButton = document.getElementById("pipeline-refresh-button");
+
+
     let currentUser = null;
     let currentUserIndex = null; // 0=Aryan,1=Reina,2=Beto
     let currentBatchId = null;
+    let currentBatchNumeric = null;
 
     let allPairs = []; // full batch_i_results.pairs
     let assignedPairs = []; // filtered for current user
@@ -380,6 +438,7 @@
         currentUser = user;
         currentUserIndex = userToIndex(user);
         currentBatchId = batchId;
+        currentBatchNumeric = Number(batchId);
 
         // Filter assigned pairs: pair_id mod 3 == userIndex
         assignedPairs = allPairs
@@ -405,6 +464,7 @@
 
         configStatus.textContent = "Batch loaded successfully.";
         configStatus.classList.add("success");
+        await refreshPipelineState();
       } catch (err) {
         console.error(err);
         configStatus.textContent = err.message;
@@ -548,6 +608,50 @@
         currentAssignedIdx === assignedPairs.length - 1;
     }
 
+    async function refreshPipelineState() {
+      if (currentBatchNumeric === null || Number.isNaN(currentBatchNumeric)) {
+        pipelinePanel.style.display = "none";
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/pipeline-state/${currentBatchNumeric}`);
+        if (!res.ok) {
+          pipelinePanel.style.display = "none";
+          return;
+        }
+
+        const data = await res.json();
+
+        // Show panel if this batch is largest OR if there's a next batch to load
+        if (!data.isLargest && !data.canLoadNext) {
+          pipelinePanel.style.display = "none";
+          return;
+        }
+
+        pipelinePanel.style.display = "block";
+
+        pipelineInfo.textContent =
+          `Batch ${currentBatchNumeric} (global max: ${data.maxBatch ?? "?"}) – ` +
+          `completed: ${data.completed ? "yes" : "no"}.`;
+
+        // Retrain button
+        retrainButton.disabled = !data.canRetrain;
+        retrainButton.textContent = data.retrainDone ? "Retrain Triggered" : "Retrain Policy";
+
+        // Generate button
+        generateButton.disabled = !data.canGenerate;
+        generateButton.textContent = data.generateDone ? "Generate Triggered" : "Generate Clips";
+
+        // Load next batch button
+        nextBatchButton.disabled = !data.canLoadNext;
+      } catch (err) {
+        console.error(err);
+        pipelinePanel.style.display = "none";
+      }
+    }
+
+
     async function saveCurrentGrade({ moveNext = true } = {}) {
       if (
         currentAssignedIdx < 0 ||
@@ -603,6 +707,7 @@
           currentAssignedIdx += 1;
           renderTabs();
           renderCurrentPair();
+          await refreshPipelineState();
         }
       } catch (err) {
         console.error(err);
@@ -700,6 +805,104 @@
     saveOnlyButton.addEventListener("click", () => {
       if (!saveOnlyButton.disabled) {
         saveCurrentGrade({ moveNext: false });
+      }
+    });
+
+    retrainButton.addEventListener("click", async () => {
+      if (retrainButton.disabled || currentBatchNumeric === null) return;
+      pipelineStatus.textContent = "Starting retrain...";
+      pipelineStatus.className = "status";
+
+      try {
+        const res = await fetch("/api/retrain", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ batchId: currentBatchNumeric }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to trigger retrain");
+        }
+        pipelineStatus.textContent = "Retrain triggered.";
+        pipelineStatus.className = "status success";
+        retrainButton.disabled = true;
+        await refreshPipelineState();
+      } catch (err) {
+        console.error(err);
+        pipelineStatus.textContent = err.message;
+        pipelineStatus.className = "status error";
+      }
+    });
+
+    generateButton.addEventListener("click", async () => {
+      if (generateButton.disabled || currentBatchNumeric === null) return;
+      pipelineStatus.textContent = "Starting clip generation...";
+      pipelineStatus.className = "status";
+
+      try {
+        const res = await fetch("/api/generate-clips", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ batchId: currentBatchNumeric }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || "Failed to trigger generate");
+        }
+        pipelineStatus.textContent = "Generate triggered.";
+        pipelineStatus.className = "status success";
+        generateButton.disabled = true;
+        await refreshPipelineState();
+      } catch (err) {
+        console.error(err);
+        pipelineStatus.textContent = err.message;
+        pipelineStatus.className = "status error";
+      }
+    });
+
+    nextBatchButton.addEventListener("click", async () => {
+      if (currentBatchNumeric === null) return;
+      pipelineStatus.textContent = "Checking for next batch...";
+      pipelineStatus.className = "status";
+
+      try {
+        const res = await fetch(`/api/pipeline-state/${currentBatchNumeric}`);
+        if (!res.ok) {
+          throw new Error("Failed to get pipeline state");
+        }
+        const data = await res.json();
+        if (!data.canLoadNext || !data.hasNextBatchJson) {
+          throw new Error("Next batch not available yet.");
+        }
+
+        const nextId = data.nextBatchId;
+        pipelineStatus.textContent = `Loading batch ${nextId}...`;
+        pipelineStatus.className = "status";
+
+        await loadBatch(currentUser, String(nextId));
+        pipelineStatus.textContent = `Loaded batch ${nextId}.`;
+        pipelineStatus.className = "status success";
+      } catch (err) {
+        console.error(err);
+        pipelineStatus.textContent = err.message;
+        pipelineStatus.className = "status error";
+      }
+    });
+
+    pipelineRefreshButton.addEventListener("click", async () => {
+      if (currentBatchNumeric === null) return;
+
+      pipelineStatus.textContent = "Refreshing status...";
+      pipelineStatus.className = "status";
+
+      try {
+        await refreshPipelineState();
+        pipelineStatus.textContent = "Status updated.";
+        pipelineStatus.className = "status success";
+      } catch (err) {
+        console.error(err);
+        pipelineStatus.textContent = "Failed to refresh status.";
+        pipelineStatus.className = "status error";
       }
     });
 

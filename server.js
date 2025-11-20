@@ -2,6 +2,16 @@
 const express = require("express");
 const fs = require("fs/promises");
 const path = require("path");
+const { execFile } = require("child_process");
+
+async function fileExists(p) {
+  try {
+    await fs.access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 const app = express();
 const PORT = 6006;
@@ -152,6 +162,152 @@ app.get("/api/max-batch", async (req, res) => {
     res.status(500).json({ error: "Failed to scan batch files" });
   }
 });
+
+// Pipeline state for a given base batch
+app.get("/api/pipeline-state/:batchId", async (req, res) => {
+  const batchId = Number(req.params.batchId);
+  if (Number.isNaN(batchId)) {
+    return res.status(400).json({ error: "Invalid batchId" });
+  }
+
+  try {
+    // 1) Find global max batch
+    const files = await fs.readdir(DATA_DIR);
+    const batchRegex = /^batch_(\d+)\.json$/;
+    let maxBatch = null;
+    for (const file of files) {
+      const m = batchRegex.exec(file);
+      if (m) {
+        const n = Number(m[1]);
+        if (!Number.isNaN(n)) {
+          maxBatch = maxBatch === null ? n : Math.max(maxBatch, n);
+        }
+      }
+    }
+
+    const isLargest = maxBatch !== null && batchId === maxBatch;
+
+    // 2) Load results to see if completed
+    let completed = false;
+    try {
+      const results = await ensureResults(batchId);
+      completed = !!results.completed;
+    } catch (e) {
+      // batch might not exist yet
+      completed = false;
+    }
+
+    // 3) Flags for one-time buttons (per batch)
+    const retrainFlagPath = path.join(DATA_DIR, `batch_${batchId}_retrained.flag`);
+    const generateFlagPath = path.join(DATA_DIR, `batch_${batchId}_generated.flag`);
+
+    const retrainDone = await fileExists(retrainFlagPath);
+    const generateDone = await fileExists(generateFlagPath);
+
+    // 4) Check for next policy + next batch json (based on current batchId)
+    const nextPolicyPath = path.join(__dirname, "data", String(batchId + 1), "models", "checkpoints", "policy.pt");
+    const nextBatchJsonPath = path.join(DATA_DIR, `batch_${batchId + 1}.json`);
+
+    const hasPolicy = await fileExists(nextPolicyPath);
+    const hasNextBatchJson = await fileExists(nextBatchJsonPath);
+
+    // 5) Gating
+    const canRetrain = isLargest && completed && !retrainDone;
+    const canGenerate = isLargest && hasPolicy && !generateDone;
+    const canLoadNext = hasNextBatchJson; // we allow this even if not largest anymore
+
+    res.json({
+      maxBatch,
+      isLargest,
+      completed,
+      retrainDone,
+      generateDone,
+      hasPolicy,
+      hasNextBatchJson,
+      canRetrain,
+      canGenerate,
+      canLoadNext,
+      nextBatchId: batchId + 1
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to compute pipeline state" });
+  }
+});
+
+// Trigger train.sh once for a batch (global across all clients)
+app.post("/api/retrain", async (req, res) => {
+  const { batchId } = req.body || {};
+  const base = Number(batchId);
+  if (Number.isNaN(base)) {
+    return res.status(400).json({ error: "Invalid batchId" });
+  }
+
+  const retrainFlagPath = path.join(DATA_DIR, `batch_${base}_retrained.flag`);
+  const scriptPath = path.join(__dirname, "train.sh");
+
+  try {
+    // Don’t allow more than once
+    if (await fileExists(retrainFlagPath)) {
+      return res.status(400).json({ error: "Retrain already triggered for this batch" });
+    }
+
+    // Fire-and-forget train.sh
+    execFile(scriptPath, { cwd: __dirname }, (err, stdout, stderr) => {
+      if (err) {
+        console.error("train.sh error:", err);
+        console.error(stderr);
+        return;
+      }
+      console.log("train.sh output:", stdout);
+    });
+
+    // Mark as triggered immediately
+    await fs.writeFile(retrainFlagPath, new Date().toISOString(), "utf-8");
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to trigger retrain" });
+  }
+});
+
+
+// Trigger generate.sh once for a batch (global)
+app.post("/api/generate-clips", async (req, res) => {
+  const { batchId } = req.body || {};
+  const base = Number(batchId);
+  if (Number.isNaN(base)) {
+    return res.status(400).json({ error: "Invalid batchId" });
+  }
+
+  const generateFlagPath = path.join(DATA_DIR, `batch_${base}_generated.flag`);
+  const scriptPath = path.join(__dirname, "generate.sh");
+
+  try {
+    if (await fileExists(generateFlagPath)) {
+      return res.status(400).json({ error: "Generate already triggered for this batch" });
+    }
+
+    // Fire-and-forget generate.sh
+    execFile(scriptPath, { cwd: __dirname }, (err, stdout, stderr) => {
+      if (err) {
+        console.error("generate.sh error:", err);
+        console.error(stderr);
+        return;
+      }
+      console.log("generate.sh output:", stdout);
+    });
+
+    await fs.writeFile(generateFlagPath, new Date().toISOString(), "utf-8");
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to trigger generate" });
+  }
+});
+
 
 
 // POST /api/batch/:batchId/pair/:pairId/grade
