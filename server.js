@@ -19,6 +19,170 @@ const PORT = 6006;
 // ---- CONFIG ----
 const DATA_DIR = path.join(__dirname, "data/metadata"); // where batch_i.json live
 const CLIPS_DIR = path.join(__dirname, "data"); // where videos live
+// Singular pipeline log file
+const LOG_FILE = path.join(DATA_DIR, "pipeline_logs.json");
+
+// Ensure the pipeline log exists and load it
+async function loadPipelineLog() {
+  try {
+    const raw = await fs.readFile(LOG_FILE, "utf-8");
+    return JSON.parse(raw);
+  } catch (err) {
+    if (err.code === "ENOENT") {
+      const initial = { batches: {} };
+      await fs.writeFile(LOG_FILE, JSON.stringify(initial, null, 2));
+      return initial;
+    }
+    throw err;
+  }
+}
+
+async function savePipelineLog(log) {
+  await fs.writeFile(LOG_FILE, JSON.stringify(log, null, 2));
+}
+
+/**
+ * Update the log based on the current detected filesystem state.
+ * 
+ * Logs are indexed by:
+ *   log.batches[batchId].procedures[procedureType]
+ *
+ * procedureType ∈ { "grading", "retrain", "generate", "policy", "nextBatchJson" }
+ */
+async function updatePipelineLog({
+  batchId,
+  completed,
+  isLargest,
+  hasPolicy,
+  hasNextBatchJson,
+  retrainFlagPath,
+  generateFlagPath,
+  retrainDone,
+  generateDone,
+  canRetrain,
+  canGenerate,
+  canLoadNext,
+  nextPolicyPath,
+  nextBatchJsonPath,
+}) {
+  const log = await loadPipelineLog();
+  const key = String(batchId);
+  const now = new Date().toISOString();
+
+  if (!log.batches[key]) {
+    log.batches[key] = {
+      lastUpdated: null,
+      procedures: {},
+    };
+  }
+
+  const batchEntry = log.batches[key];
+  batchEntry.lastUpdated = now;
+  batchEntry.procedures = batchEntry.procedures || {};
+
+  // Grading / completion status
+  batchEntry.procedures.grading = {
+    type: "grading",
+    completed,
+    isLargest,
+    lastChecked: now,
+  };
+
+  // Retrain procedure
+  batchEntry.procedures.retrain = {
+    type: "retrain",
+    flagPath: retrainFlagPath,
+    flagExists: retrainDone,
+    canRetrain,
+    lastChecked: now,
+  };
+
+  // Generate procedure
+  batchEntry.procedures.generate = {
+    type: "generate",
+    flagPath: generateFlagPath,
+    flagExists: generateDone,
+    canGenerate,
+    lastChecked: now,
+  };
+
+  // Policy checkpoint for next batch
+  batchEntry.procedures.policy = {
+    type: "policy",
+    policyPath: nextPolicyPath,
+    exists: hasPolicy,
+    lastChecked: now,
+  };
+
+  // Next batch metadata JSON
+  batchEntry.procedures.nextBatchJson = {
+    type: "nextBatchJson",
+    jsonPath: nextBatchJsonPath,
+    exists: hasNextBatchJson,
+    canLoadNext,
+    lastChecked: now,
+  };
+
+  await savePipelineLog(log);
+}
+
+// Ensure there's an entry for this batch in the log
+async function getPipelineEntry(batchId) {
+  const log = await loadPipelineLog();
+  const key = String(batchId);
+
+  if (!log.batches[key]) {
+    log.batches[key] = {
+      retrain: { triggered: false, lastTriggered: null, lastUpdated: null },
+      generate: { triggered: false, lastTriggered: null, lastUpdated: null },
+      status: null,
+    };
+  } else {
+    // Backfill fields if missing
+    if (!log.batches[key].retrain) {
+      log.batches[key].retrain = {
+        triggered: false,
+        lastTriggered: null,
+        lastUpdated: null,
+      };
+    }
+    if (!log.batches[key].generate) {
+      log.batches[key].generate = {
+        triggered: false,
+        lastTriggered: null,
+        lastUpdated: null,
+      };
+    }
+  }
+
+  return { log, entry: log.batches[key], key };
+}
+
+async function markRetrainTriggered(batchId) {
+  const now = new Date().toISOString();
+  const { log, entry } = await getPipelineEntry(batchId);
+  entry.retrain.triggered = true;
+  entry.retrain.lastTriggered = now;
+  entry.retrain.lastUpdated = now;
+  await savePipelineLog(log);
+}
+
+async function markGenerateTriggered(batchId) {
+  const now = new Date().toISOString();
+  const { log, entry } = await getPipelineEntry(batchId);
+  entry.generate.triggered = true;
+  entry.generate.lastTriggered = now;
+  entry.generate.lastUpdated = now;
+  await savePipelineLog(log);
+}
+
+// Called by /api/pipeline-state to snapshot current filesystem-based status
+async function updatePipelineStatus(batchId, status) {
+  const now = new Date().toISOString();
+  const { log, entry } = await getPipelineEntry(batchId);
+  entry.status = { ...status, lastChecked: now };
+  await savePipelineLog(log);
+}
 
 app.use(express.json());
 
@@ -193,28 +357,47 @@ app.get("/api/pipeline-state/:batchId", async (req, res) => {
       const results = await ensureResults(batchId);
       completed = !!results.completed;
     } catch (e) {
-      // batch might not exist yet
       completed = false;
     }
 
-    // 3) Flags for one-time buttons (per batch)
-    const retrainFlagPath = path.join(DATA_DIR, `batch_${batchId}_retrained.flag`);
-    const generateFlagPath = path.join(DATA_DIR, `batch_${batchId}_generated.flag`);
-
-    const retrainDone = await fileExists(retrainFlagPath);
-    const generateDone = await fileExists(generateFlagPath);
+    // 3) Read "already triggered" state from central JSON
+    const { entry } = await getPipelineEntry(batchId);
+    const retrainDone = !!(entry.retrain && entry.retrain.triggered);
+    const generateDone = !!(entry.generate && entry.generate.triggered);
 
     // 4) Check for next policy + next batch json (based on current batchId)
-    const nextPolicyPath = path.join(__dirname, "data", String(batchId + 1), "models", "checkpoints", "policy.pt");
+    const nextPolicyPath = path.join(
+      __dirname,
+      "data",
+      String(batchId + 1),
+      "models",
+      "checkpoints",
+      "policy.pt"
+    );
     const nextBatchJsonPath = path.join(DATA_DIR, `batch_${batchId + 1}.json`);
 
     const hasPolicy = await fileExists(nextPolicyPath);
     const hasNextBatchJson = await fileExists(nextBatchJsonPath);
 
-    // 5) Gating
+    // 5) Gating – logic is unchanged, just no .flag files anymore
     const canRetrain = isLargest && completed && !retrainDone;
     const canGenerate = isLargest && hasPolicy && !generateDone;
     const canLoadNext = hasNextBatchJson; // we allow this even if not largest anymore
+
+    // 6) Update the single JSON log based on what we just detected
+    await updatePipelineStatus(batchId, {
+      maxBatch,
+      isLargest,
+      completed,
+      retrainDone,
+      generateDone,
+      hasPolicy,
+      hasNextBatchJson,
+      canRetrain,
+      canGenerate,
+      canLoadNext,
+      nextBatchId: batchId + 1,
+    });
 
     res.json({
       maxBatch,
@@ -227,13 +410,14 @@ app.get("/api/pipeline-state/:batchId", async (req, res) => {
       canRetrain,
       canGenerate,
       canLoadNext,
-      nextBatchId: batchId + 1
+      nextBatchId: batchId + 1,
     });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to compute pipeline state" });
   }
 });
+
 
 // Trigger train.sh once for a batch (global across all clients)
 app.post("/api/retrain", async (req, res) => {
@@ -243,13 +427,15 @@ app.post("/api/retrain", async (req, res) => {
     return res.status(400).json({ error: "Invalid batchId" });
   }
 
-  const retrainFlagPath = path.join(DATA_DIR, `batch_${base}_retrained.flag`);
   const scriptPath = path.join(__dirname, "train.sh");
 
   try {
-    // Don’t allow more than once
-    if (await fileExists(retrainFlagPath)) {
-      return res.status(400).json({ error: "Retrain already triggered for this batch" });
+    // Don't allow more than once per batch, using central log
+    const { entry } = await getPipelineEntry(base);
+    if (entry.retrain && entry.retrain.triggered) {
+      return res
+        .status(400)
+        .json({ error: "Retrain already triggered for this batch" });
     }
 
     // Fire-and-forget train.sh
@@ -262,8 +448,7 @@ app.post("/api/retrain", async (req, res) => {
       console.log("train.sh output:", stdout);
     });
 
-    // Mark as triggered immediately
-    await fs.writeFile(retrainFlagPath, new Date().toISOString(), "utf-8");
+    await markRetrainTriggered(base);
 
     res.json({ success: true });
   } catch (err) {
@@ -271,6 +456,7 @@ app.post("/api/retrain", async (req, res) => {
     res.status(500).json({ error: "Failed to trigger retrain" });
   }
 });
+
 
 
 // Trigger generate.sh once for a batch (global)
@@ -281,12 +467,14 @@ app.post("/api/generate-clips", async (req, res) => {
     return res.status(400).json({ error: "Invalid batchId" });
   }
 
-  const generateFlagPath = path.join(DATA_DIR, `batch_${base}_generated.flag`);
   const scriptPath = path.join(__dirname, "generate.sh");
 
   try {
-    if (await fileExists(generateFlagPath)) {
-      return res.status(400).json({ error: "Generate already triggered for this batch" });
+    const { entry } = await getPipelineEntry(base);
+    if (entry.generate && entry.generate.triggered) {
+      return res
+        .status(400)
+        .json({ error: "Generate already triggered for this batch" });
     }
 
     // Fire-and-forget generate.sh
@@ -299,7 +487,7 @@ app.post("/api/generate-clips", async (req, res) => {
       console.log("generate.sh output:", stdout);
     });
 
-    await fs.writeFile(generateFlagPath, new Date().toISOString(), "utf-8");
+    await markGenerateTriggered(base);
 
     res.json({ success: true });
   } catch (err) {
@@ -307,7 +495,6 @@ app.post("/api/generate-clips", async (req, res) => {
     res.status(500).json({ error: "Failed to trigger generate" });
   }
 });
-
 
 
 // POST /api/batch/:batchId/pair/:pairId/grade

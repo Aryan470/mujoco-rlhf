@@ -440,6 +440,8 @@
         currentBatchId = batchId;
         currentBatchNumeric = Number(batchId);
 
+        batchInput.value = String(batchId);
+
         // Filter assigned pairs: pair_id mod 3 == userIndex
         assignedPairs = allPairs
           .map((p, idx) => {
