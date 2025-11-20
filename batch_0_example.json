@@ -1,0 +1,19 @@
+
+{
+    "batch_id": 0,
+    "pairs": [
+        {
+            "pair_id": 0,
+            "obs1": {
+                "clip_id": "clip_001",
+                "tensor_path": "example_clip_pairs/clip_001/tensor.pt",
+                "video_path": "example_clip_pairs/clip_001/video.mp4"
+            },
+            "obs2": {
+                "clip_id": "clip_002",
+                "tensor_path": "example_clip_pairs/clip_002/tensor.pt",
+                "video_path": "example_clip_pairs/clip_002/video.mp4"
+            }
+        }
+    ]
+}

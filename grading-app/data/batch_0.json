@@ -1,0 +1,123 @@
+
+{
+    "batch_id": 0,
+    "pairs": [
+        {
+            "pair_id": 0,
+            "obs1": {
+                "clip_id": "clip_001",
+                "tensor_path": "example_clip_pairs/clip_001/sample.mp4",
+                "video_path": "example_clip_pairs/clip_001/sample.mp4"
+            },
+            "obs2": {
+                "clip_id": "clip_002",
+                "tensor_path": "example_clip_pairs/clip_002/sample.mp4",
+                "video_path": "example_clip_pairs/clip_002/sample.mp4"
+            }
+        },
+        {
+            "pair_id": 1,
+            "obs1": {
+                "clip_id": "clip_001",
+                "tensor_path": "example_clip_pairs/clip_001/sample.mp4",
+                "video_path": "example_clip_pairs/clip_001/sample.mp4"
+            },
+            "obs2": {
+                "clip_id": "clip_002",
+                "tensor_path": "example_clip_pairs/clip_002/sample.mp4",
+                "video_path": "example_clip_pairs/clip_002/sample.mp4"
+            }
+        },
+        {
+            "pair_id": 2,
+            "obs1": {
+                "clip_id": "clip_001",
+                "tensor_path": "example_clip_pairs/clip_001/sample.mp4",
+                "video_path": "example_clip_pairs/clip_001/sample.mp4"
+            },
+            "obs2": {
+                "clip_id": "clip_002",
+                "tensor_path": "example_clip_pairs/clip_002/sample.mp4",
+                "video_path": "example_clip_pairs/clip_002/sample.mp4"
+            }
+        },
+        {
+            "pair_id": 3,
+            "obs1": {
+                "clip_id": "clip_001",
+                "tensor_path": "example_clip_pairs/clip_001/sample.mp4",
+                "video_path": "example_clip_pairs/clip_001/sample.mp4"
+            },
+            "obs2": {
+                "clip_id": "clip_002",
+                "tensor_path": "example_clip_pairs/clip_002/sample.mp4",
+                "video_path": "example_clip_pairs/clip_002/sample.mp4"
+            }
+        },
+        {
+            "pair_id": 4,
+            "obs1": {
+                "clip_id": "clip_001",
+                "tensor_path": "example_clip_pairs/clip_001/sample.mp4",
+                "video_path": "example_clip_pairs/clip_001/sample.mp4"
+            },
+            "obs2": {
+                "clip_id": "clip_002",
+                "tensor_path": "example_clip_pairs/clip_002/sample.mp4",
+                "video_path": "example_clip_pairs/clip_002/sample.mp4"
+            }
+        },
+        {
+            "pair_id": 5,
+            "obs1": {
+                "clip_id": "clip_001",
+                "tensor_path": "example_clip_pairs/clip_001/sample.mp4",
+                "video_path": "example_clip_pairs/clip_001/sample.mp4"
+            },
+            "obs2": {
+                "clip_id": "clip_002",
+                "tensor_path": "example_clip_pairs/clip_002/sample.mp4",
+                "video_path": "example_clip_pairs/clip_002/sample.mp4"
+            }
+        },
+        {
+            "pair_id": 6,
+            "obs1": {
+                "clip_id": "clip_001",
+                "tensor_path": "example_clip_pairs/clip_001/sample.mp4",
+                "video_path": "example_clip_pairs/clip_001/sample.mp4"
+            },
+            "obs2": {
+                "clip_id": "clip_002",
+                "tensor_path": "example_clip_pairs/clip_002/sample.mp4",
+                "video_path": "example_clip_pairs/clip_002/sample.mp4"
+            }
+        },
+        {
+            "pair_id": 7,
+            "obs1": {
+                "clip_id": "clip_001",
+                "tensor_path": "example_clip_pairs/clip_001/sample.mp4",
+                "video_path": "example_clip_pairs/clip_001/sample.mp4"
+            },
+            "obs2": {
+                "clip_id": "clip_002",
+                "tensor_path": "example_clip_pairs/clip_002/sample.mp4",
+                "video_path": "example_clip_pairs/clip_002/sample.mp4"
+            }
+        },
+        {
+            "pair_id": 8,
+            "obs1": {
+                "clip_id": "clip_001",
+                "tensor_path": "example_clip_pairs/clip_001/sample.mp4",
+                "video_path": "example_clip_pairs/clip_001/sample.mp4"
+            },
+            "obs2": {
+                "clip_id": "clip_002",
+                "tensor_path": "example_clip_pairs/clip_002/sample.mp4",
+                "video_path": "example_clip_pairs/clip_002/sample.mp4"
+            }
+        }
+    ]
+}
