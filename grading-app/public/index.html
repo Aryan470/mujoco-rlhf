@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Batch Pair Grader</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      margin-bottom: 0.5rem;
+    }
+    .config-panel, .main-panel {
+      background: white;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 16px;
+    }
+    .config-panel label {
+      margin-right: 8px;
+    }
+    .config-panel select, .config-panel input {
+      margin-right: 12px;
+    }
+    .pair-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .pair-tab {
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      font-size: 0.85rem;
+    }
+    .pair-tab.active {
+      border-color: #333;
+      font-weight: bold;
+    }
+    .pair-tab.ungraded {
+      background: #ffecec;
+    }
+    .pair-tab.graded {
+      background: #e7ffe7;
+    }
+    .videos-container {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .video-box {
+      flex: 1 1 300px;
+      min-width: 260px;
+    }
+    video {
+      width: 100%;
+      max-height: 240px;
+      background: #000;
+    }
+    .video-error {
+      color: #b00020;
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+    .grade-options {
+      margin-bottom: 12px;
+    }
+    .grade-options label {
+      margin-right: 12px;
+    }
+    .nav-buttons button {
+      margin-right: 8px;
+    }
+    .status {
+      margin-top: 8px;
+      font-size: 0.9rem;
+    }
+    .status.error {
+      color: #b00020;
+    }
+    .status.success {
+      color: #006400;
+    }
+  </style>
+</head>
+<body>
+  <h1>Batch Pair Grader</h1>
+
+  <div class="config-panel">
+    <form id="config-form">
+      <label for="user-select">User:</label>
+      <select id="user-select" required>
+        <option value="">Select user</option>
+        <option value="Aryan">Aryan</option>
+        <option value="Reina">Reina</option>
+        <option value="Beto">Beto</option>
+      </select>
+
+      <label for="batch-input">Batch #:</label>
+      <input id="batch-input" type="number" min="0" required />
+
+      <button type="submit">Load Batch</button>
+    </form>
+    <div id="config-status" class="status"></div>
+  </div>
+
+  <div class="main-panel" id="main-panel" style="display:none;">
+    <h2 id="batch-title"></h2>
+    <div id="assignment-info"></div>
+
+    <div class="pair-tabs" id="pair-tabs"></div>
+
+    <div id="pair-details">
+      <h3 id="pair-header"></h3>
+      <div class="videos-container">
+        <div class="video-box">
+          <h4>Observation 1</h4>
+          <video id="video1" controls></video>
+          <div id="video1-error" class="video-error"></div>
+          <div><strong>Path:</strong> <span id="video1-path"></span></div>
+        </div>
+        <div class="video-box">
+          <h4>Observation 2</h4>
+          <video id="video2" controls></video>
+          <div id="video2-error" class="video-error"></div>
+          <div><strong>Path:</strong> <span id="video2-path"></span></div>
+        </div>
+      </div>
+
+      <div class="grade-options">
+        <strong>Grade:</strong>
+        <label><input type="radio" name="grade" value="pair1_better"> Pair 1 better</label>
+        <label><input type="radio" name="grade" value="pair2_better"> Pair 2 better</label>
+        <label><input type="radio" name="grade" value="similar"> Similar</label>
+        <label><input type="radio" name="grade" value="not_comparable"> Not comparable</label>
+        <label><input type="radio" name="grade" value="ungraded"> Ungraded</label>
+      </div>
+
+      <div class="nav-buttons">
+        <button id="back-button" type="button">&laquo; Previous</button>
+        <button id="save-button" type="button">Save &amp; Next</button>
+        <button id="forward-button" type="button">Next &raquo;</button>
+      </div>
+
+      <div id="main-status" class="status"></div>
+    </div>
+  </div>
+
+  <script>
+    const configForm = document.getElementById("config-form");
+    const userSelect = document.getElementById("user-select");
+    const batchInput = document.getElementById("batch-input");
+    const configStatus = document.getElementById("config-status");
+
+    const mainPanel = document.getElementById("main-panel");
+    const batchTitle = document.getElementById("batch-title");
+    const assignmentInfo = document.getElementById("assignment-info");
+    const pairTabsContainer = document.getElementById("pair-tabs");
+    const pairHeader = document.getElementById("pair-header");
+
+    const video1 = document.getElementById("video1");
+    const video2 = document.getElementById("video2");
+    const video1Error = document.getElementById("video1-error");
+    const video2Error = document.getElementById("video2-error");
+    const video1PathSpan = document.getElementById("video1-path");
+    const video2PathSpan = document.getElementById("video2-path");
+
+    const backButton = document.getElementById("back-button");
+    const saveButton = document.getElementById("save-button");
+    const forwardButton = document.getElementById("forward-button");
+    const mainStatus = document.getElementById("main-status");
+
+    let currentUser = null;
+    let currentUserIndex = null; // 0=Aryan,1=Reina,2=Beto
+    let currentBatchId = null;
+
+    let allPairs = []; // full batch_i_results.pairs
+    let assignedPairs = []; // filtered for current user
+    let currentAssignedIdx = 0; // index in assignedPairs
+
+    function userToIndex(user) {
+      if (user === "Aryan") return 0;
+      if (user === "Reina") return 1;
+      if (user === "Beto")  return 2;
+      return null;
+    }
+
+    async function loadBatch(user, batchId) {
+      configStatus.textContent = "";
+      configStatus.className = "status";
+      mainStatus.textContent = "";
+      mainStatus.className = "status";
+
+      try {
+        const res = await fetch(`/api/batch/${batchId}`);
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Failed to load batch");
+        }
+        const data = await res.json();
+        allPairs = data.pairs || [];
+        currentUser = user;
+        currentUserIndex = userToIndex(user);
+        currentBatchId = batchId;
+
+        // Filter assigned pairs: pair_id mod 3 == userIndex
+        assignedPairs = allPairs
+          .map((p, idx) => {
+            const id = typeof p.pair_id === "number" ? p.pair_id : idx;
+            return { pair: p, id, originalIndex: idx };
+          })
+          .filter((item) => item.id % 3 === currentUserIndex);
+
+        if (assignedPairs.length === 0) {
+          configStatus.textContent =
+            "No pairs assigned to this user for this batch (based on pair_id mod 3).";
+          configStatus.classList.add("error");
+          mainPanel.style.display = "none";
+          return;
+        }
+
+        currentAssignedIdx = 0;
+        renderBatch();
+        renderTabs();
+        renderCurrentPair();
+        mainPanel.style.display = "block";
+
+        configStatus.textContent = "Batch loaded successfully.";
+        configStatus.classList.add("success");
+      } catch (err) {
+        console.error(err);
+        configStatus.textContent = err.message;
+        configStatus.classList.add("error");
+        mainPanel.style.display = "none";
+      }
+    }
+
+    function renderBatch() {
+      batchTitle.textContent = `Batch ${currentBatchId} – ${currentUser}`;
+      assignmentInfo.textContent =
+        `Showing pairs where (pair_id mod 3) = ${currentUserIndex}.`;
+    }
+
+    function renderTabs() {
+      pairTabsContainer.innerHTML = "";
+      assignedPairs.forEach((item, idx) => {
+        const tab = document.createElement("div");
+        tab.classList.add("pair-tab");
+        const grade = item.pair.grade || "ungraded";
+        tab.classList.add(grade === "ungraded" ? "ungraded" : "graded");
+        if (idx === currentAssignedIdx) {
+          tab.classList.add("active");
+        }
+        tab.textContent = `Pair ${item.id}`;
+        tab.addEventListener("click", () => {
+          currentAssignedIdx = idx;
+          renderTabs();
+          renderCurrentPair();
+        });
+        pairTabsContainer.appendChild(tab);
+      });
+    }
+
+    function setVideoSource(videoEl, errorEl, pathSpan, videoPath) {
+      errorEl.textContent = "";
+      pathSpan.textContent = videoPath || "(none)";
+      videoEl.src = "";
+
+      if (!videoPath) {
+        errorEl.textContent = "No video path provided.";
+        return;
+      }
+
+      // Use the path as-is; it should be reachable from the server static routes
+      videoEl.src = `/${videoPath}`;
+      videoEl.load();
+
+      videoEl.onerror = () => {
+        errorEl.textContent = `Error loading video: ${videoPath} (file may not exist)`;
+      };
+    }
+
+    function renderCurrentPair() {
+      if (
+        currentAssignedIdx < 0 ||
+        currentAssignedIdx >= assignedPairs.length
+      ) {
+        return;
+      }
+      const item = assignedPairs[currentAssignedIdx];
+      const p = item.pair;
+      const pairLabel = typeof p.pair_id === "number" ? p.pair_id : item.id;
+
+      pairHeader.textContent = `Pair ${pairLabel}`;
+
+      // Set videos
+      const v1Path = p.obs1 && p.obs1.video_path ? p.obs1.video_path : "";
+      const v2Path = p.obs2 && p.obs2.video_path ? p.obs2.video_path : "";
+
+      setVideoSource(video1, video1Error, video1PathSpan, v1Path);
+      setVideoSource(video2, video2Error, video2PathSpan, v2Path);
+
+      // Set grade radio
+      const gradeValue = p.grade || "ungraded";
+      const radios = document.querySelectorAll('input[name="grade"]');
+      let matched = false;
+      radios.forEach((r) => {
+        if (r.value === gradeValue) {
+          r.checked = true;
+          matched = true;
+        } else {
+          r.checked = false;
+        }
+      });
+      if (!matched) {
+        // default to ungraded
+        const ungradedRadio = document.querySelector(
+          'input[name="grade"][value="ungraded"]'
+        );
+        if (ungradedRadio) ungradedRadio.checked = true;
+      }
+
+      mainStatus.textContent = "";
+      mainStatus.className = "status";
+
+      // Update buttons state
+      backButton.disabled = currentAssignedIdx === 0;
+      forwardButton.disabled =
+        currentAssignedIdx === assignedPairs.length - 1;
+    }
+
+    async function saveCurrentGrade({ moveNext = true } = {}) {
+      if (
+        currentAssignedIdx < 0 ||
+        currentAssignedIdx >= assignedPairs.length
+      ) {
+        return;
+      }
+      const item = assignedPairs[currentAssignedIdx];
+      const p = item.pair;
+
+      const radios = document.querySelectorAll('input[name="grade"]');
+      let selected = "ungraded";
+      radios.forEach((r) => {
+        if (r.checked) {
+          selected = r.value;
+        }
+      });
+
+      mainStatus.textContent = "Saving...";
+      mainStatus.className = "status";
+
+      try {
+        const pairIdForServer =
+          typeof p.pair_id === "number"
+            ? p.pair_id
+            : item.id; // fallback index-based id
+
+        const res = await fetch(
+          `/api/batch/${currentBatchId}/pair/${pairIdForServer}/grade`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ grade: selected }),
+          }
+        );
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || "Failed to save grade");
+        }
+
+        // Update local state
+        p.grade = selected;
+        allPairs[item.originalIndex].grade = selected;
+
+        mainStatus.textContent = "Saved.";
+        mainStatus.classList.add("success");
+
+        // Refresh tabs colors
+        renderTabs();
+
+        if (moveNext && currentAssignedIdx < assignedPairs.length - 1) {
+          currentAssignedIdx += 1;
+          renderTabs();
+          renderCurrentPair();
+        }
+      } catch (err) {
+        console.error(err);
+        mainStatus.textContent = err.message;
+        mainStatus.classList.add("error");
+      }
+    }
+
+    // ---- Event listeners ----
+    configForm.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const user = userSelect.value;
+      const batchId = batchInput.value.trim();
+      if (!user || batchId === "") {
+        configStatus.textContent = "Select a user and batch number.";
+        configStatus.classList.add("error");
+        return;
+      }
+      loadBatch(user, batchId);
+    });
+
+    backButton.addEventListener("click", () => {
+      if (currentAssignedIdx > 0) {
+        currentAssignedIdx -= 1;
+        renderTabs();
+        renderCurrentPair();
+      }
+    });
+
+    forwardButton.addEventListener("click", () => {
+      if (currentAssignedIdx < assignedPairs.length - 1) {
+        currentAssignedIdx += 1;
+        renderTabs();
+        renderCurrentPair();
+      }
+    });
+
+    saveButton.addEventListener("click", () => {
+      saveCurrentGrade({ moveNext: true });
+    });
+  </script>
+</body>
+</html>
