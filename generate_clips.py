@@ -167,9 +167,8 @@ def render_and_save_pairs(iteration_idx, output_path, trajectories, pairs):
         json.dump(wrapped_metadata, f)
 
 
-def main(base_path: pathlib.Path, iteration_idx: int):
+def main(base_path: pathlib.Path, iteration_idx: int, num_pairs: int = 200):
     num_trajectories = 1000
-    num_pairs = 200
     max_steps = 24 * 10
     # load the policy model and reward model
     print(f"Loading models from {base_path / 'models'}")
@@ -190,5 +189,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_path", type=pathlib.Path, required=True)
     parser.add_argument("--iteration_idx", type=int, required=True)
+    parser.add_argument("--num_pairs", type=int, required=False, default=15)
     args = parser.parse_args()
-    main(args.base_path, args.iteration_idx)
+    main(args.base_path, args.iteration_idx, args.num_pairs)
