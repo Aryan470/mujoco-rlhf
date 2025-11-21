@@ -2,6 +2,8 @@ import gymnasium as gym
 import numpy as np
 from gymnasium.utils.save_video import save_video
 import os
+os.environ["MUJOCO_GL"] = "egl"
+
 import random
 import json
 import argparse
