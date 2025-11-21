@@ -20,7 +20,7 @@ class PolicyModel(torch.nn.Module):
         std = torch.exp(self.log_std)
         eps = torch.randn_like(mean)
         actions = mean + std * eps 
-        return actions, self.critic(obs)#, mean, std
+        return actions, self.critic(obs), mean, std
 
 
 class MLP(nn.Module):
