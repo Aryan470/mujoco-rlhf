@@ -43,11 +43,11 @@ for f in "$BASE_DIR"/data/metadata/batch_*_results.json; do
 done
 shopt -u nullglob
 
-if (( max_i < 0 )); then
-    echo "[generate.sh] ERROR: No batch_*_results.json files found in data/metadata." | tee -a "$LOGFILE"
-    echo "[generate.sh] You probably need to label an initial batch and/or run train.sh first." | tee -a "$LOGFILE"
-    exit 1
-fi
+# if (( max_i < 0 )); then
+#     echo "[generate.sh] ERROR: No batch_*_results.json files found in data/metadata." | tee -a "$LOGFILE"
+#     echo "[generate.sh] You probably need to label an initial batch and/or run train.sh first." | tee -a "$LOGFILE"
+#     exit 1
+# fi
 
 phase=$((max_i + 1))
 
