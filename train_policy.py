@@ -507,7 +507,7 @@ def train_proc(phase_num: int):
     train_reward_model(
         preferences_json_path=f"data/metadata/batch_{phase_num - 1}_results.json",
         checkpoint_path=f"data/{phase_num - 1}/models/checkpoints/reward.pt",
-        save_base_path="models/checkpoints/reward_trained.pt",
+        save_base_path="models/checkpoints/reward.pt",
         device="cuda",
         batch_size=32,
         num_epochs=10,
