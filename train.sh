@@ -3,10 +3,13 @@ set -euo pipefail
 
 # ------------------------------------------------------------------
 # Script: train.sh
-# Purpose: Train the policy model for the next batch and log progress
+# Purpose: Detect latest batch_i_results.json and retrain models
+#          via train_proc(phase_num) in train_policy.py
 # ------------------------------------------------------------------
 
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$BASE_DIR"
+
 LOG_DIR="$BASE_DIR/logs/train"
 mkdir -p "$LOG_DIR"
 
@@ -20,18 +23,53 @@ echo "Logfile:           $LOGFILE" | tee -a "$LOGFILE"
 echo "-----------------------------------------------------" | tee -a "$LOGFILE"
 echo "" | tee -a "$LOGFILE"
 
-# ---------------------------
-# CUSTOM TRAINING COMMAND HERE
-# ---------------------------
-# Example placeholder:
-# python train_model.py --config configs/latest.yaml
+# -----------------------------------------------------
+# Detect highest i such that data/metadata/batch_{i}_results.json exists
+# -----------------------------------------------------
+echo "[train.sh] Scanning for batch_*_results.json in data/metadata..." | tee -a "$LOGFILE"
 
-echo "[train.sh] Starting model training..." | tee -a "$LOGFILE"
+max_i=-1
+shopt -s nullglob
+for f in "$BASE_DIR"/data/metadata/batch_*_results.json; do
+    fname="$(basename "$f")"
+    idx="${fname#batch_}"
+    idx="${idx%_results.json}"
 
-# 🔥 REPLACE THIS with your actual training command:
-python3 train_model.py 2>&1 | tee -a "$LOGFILE"
+    if [[ "$idx" =~ ^[0-9]+$ ]]; then
+        if (( idx > max_i )); then
+            max_i=$idx
+        fi
+    fi
+done
+shopt -u nullglob
 
-STATUS=$?
+if (( max_i < 0 )); then
+    echo "[train.sh] ERROR: No batch_*_results.json files found in data/metadata." | tee -a "$LOGFILE"
+    exit 1
+fi
+
+phase=$((max_i + 1))
+
+echo "[train.sh] Using latest batch index i=$max_i" | tee -a "$LOGFILE"
+echo "[train.sh] Calling train_proc with phase_num=i+1=$phase" | tee -a "$LOGFILE"
+echo "" | tee -a "$LOGFILE"
+
+# -----------------------------------------------------
+# Run retraining using train_policy.train_proc
+# -----------------------------------------------------
+echo "[train.sh] Starting retrain via train_proc..." | tee -a "$LOGFILE"
+
+python3 - <<PY 2>&1 | tee -a "$LOGFILE"
+from train_policy import train_proc
+
+i = ${max_i}
+phase_num = ${phase}
+
+print(f"[python] Retraining with batch index i={i}, phase_num={phase_num}")
+train_proc(phase_num)
+PY
+
+STATUS=${PIPESTATUS[0]}
 echo "" | tee -a "$LOGFILE"
 
 if [[ $STATUS -eq 0 ]]; then

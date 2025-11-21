@@ -501,6 +501,39 @@ def train_reward_model(
 
     return reward_model
 
+
+
+def train_proc(phase_num: int):
+    train_reward_model(
+        preferences_json_path=f"data/metadata/batch_{phase_num - 1}_results.json",
+        checkpoint_path=f"data/{phase_num - 1}/models/checkpoints/reward.pt",
+        save_base_path="models/checkpoints/reward_trained.pt",
+        device="cuda",
+        batch_size=32,
+        num_epochs=10,
+        lr=1e-4,
+        weight_decay=1e-4,
+        phase=phase_num,
+        log_dir="runs/reward_model",
+    )
+    train_policy_model(
+        policy_checkpoint_path=f"data/{phase_num - 1}/models/checkpoints/policy.pt",
+        reward_checkpoint_path=f"data/{phase_num - 1}/models/checkpoints/reward.pt",
+        device="cuda",
+        steps_per_iter=4096,
+        num_iters=100,
+        gamma=0.99,
+        lam=0.97,
+        max_kl=1e-2,
+        critic_lr=3e-4,
+        critic_updates_iter=80,
+        save_base_path="models/checkpoints/policy.pt",
+        phase=phase_num,
+        log_dir="runs/trpo",
+    )
+
+
+
 if __name__ == "__main__":
     train_reward_model(
         preferences_json_path="data/metadata/batch_0_results.json",
