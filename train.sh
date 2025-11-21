@@ -59,7 +59,7 @@ echo "" | tee -a "$LOGFILE"
 # -----------------------------------------------------
 echo "[train.sh] Starting retrain via train_proc..." | tee -a "$LOGFILE"
 
-python3 - <<PY 2>&1 | tee -a "$LOGFILE"
+python3 -u - <<PY 2>&1 | tee -a "$LOGFILE"
 from train_policy import train_proc
 
 i = ${max_i}

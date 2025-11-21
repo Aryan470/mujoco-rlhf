@@ -74,7 +74,7 @@ fi
 # -----------------------------------------------------
 echo "[generate.sh] Generating new clips with generate_clips.py --base_path data --iteration_idx $phase" | tee -a "$LOGFILE"
 
-python3 generate_clips.py \
+python3 -u generate_clips.py \
     --base_path data \
     --iteration_idx "$phase" \
     2>&1 | tee -a "$LOGFILE"
