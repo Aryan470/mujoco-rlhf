@@ -206,8 +206,8 @@ def train_policy_model(
     reward_checkpoint_path: str = "data/0/models/checkpoints/reward.pt",
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
     steps_per_iter: int = 4096,
-    num_iters: int = 100,
-    gamma: float = 0.99,
+    num_iters: int = 300,
+    gamma: float = 0.995,
     lam: float = 0.97,
     max_kl: float = 1e-2,
     critic_lr: float = 3e-4,
@@ -435,7 +435,7 @@ def train_reward_model(
     save_base_path: str = "models/checkpoints/reward_trained.pt",
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
     batch_size: int = 32,
-    num_epochs: int = 10,
+    num_epochs: int = 30,
     lr: float = 1e-4,
     weight_decay: float = 1e-4,
     phase: int = 1,
@@ -451,11 +451,10 @@ def train_reward_model(
         if checkpoint["optimizer_state_dict"] is not None:
             optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
  
+    log_dir = os.path.join(log_dir, f"phase_{phase}")
 
     writer = SummaryWriter(log_dir=log_dir)
     global_step = 0
-
-    log_dir = os.path.join(log_dir, f"phase_{phase}")
 
     reward_model.train()
     for epoch in range(num_epochs):
