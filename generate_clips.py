@@ -189,6 +189,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_path", type=pathlib.Path, required=True)
     parser.add_argument("--iteration_idx", type=int, required=True)
-    parser.add_argument("--num_pairs", type=int, required=False, default=15)
+    parser.add_argument("--num_pairs", type=int, required=False, default=200)
     args = parser.parse_args()
     main(args.base_path, args.iteration_idx, args.num_pairs)
