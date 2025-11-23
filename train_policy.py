@@ -202,8 +202,8 @@ def trpo_step(policy_model, states, actions, advantages, logp_old, mean_old, std
 
 
 def train_policy_model(
-    policy_checkpoint_path: str = "data/0/models/checkpoints/policy.pt",
-    reward_checkpoint_path: str = "data/0/models/checkpoints/reward.pt",
+    policy_checkpoint_path,
+    reward_checkpoint_path,
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
     steps_per_iter: int = 4096,
     num_iters: int = 300,
@@ -431,8 +431,8 @@ class PreferenceDatasetFromJSON(Dataset):
 
 def train_reward_model(
     preferences_json_path: str,
-    checkpoint_path: str = "data/0/models/checkpoints/reward.pt",
-    save_base_path: str = "models/checkpoints/reward_trained.pt",
+    checkpoint_path: str,
+    save_base_path: str,
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
     batch_size: int = 32,
     num_epochs: int = 50,
@@ -517,7 +517,7 @@ def train_proc(phase_num: int):
     )
     train_policy_model(
         policy_checkpoint_path=f"data/{phase_num - 1}/models/checkpoints/policy.pt",
-        reward_checkpoint_path=f"data/{phase_num - 1}/models/checkpoints/reward.pt",
+        reward_checkpoint_path=f"data/{phase_num}/models/checkpoints/reward.pt",
         device="cuda",
         steps_per_iter=4096,
         num_iters=300,

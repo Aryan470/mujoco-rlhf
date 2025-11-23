@@ -1,8 +1,9 @@
+import os
+os.environ["MUJOCO_GL"] = "egl"
+
 import gymnasium as gym
 import numpy as np
 from gymnasium.utils.save_video import save_video
-import os
-os.environ["MUJOCO_GL"] = "egl"
 
 import random
 import json
@@ -84,21 +85,29 @@ def select_pairs(trajectories, reward_model, num_pairs: int, device: torch.devic
     return output_pairs[:num_pairs]
 
 
-def generate_clip(trajectory_idx, obs_seq, act_seq, output_path, start_idx, end_idx):
-    env = gym.make("Hopper-v5", render_mode="rgb_array_list")
+def generate_clip(trajectory_idx, act_seq, output_path, start_idx, end_idx):
+    env = gym.make("Hopper-v5", render_mode="rgb_array")
     env.reset(seed=trajectory_idx)
-    for step in range(end_idx):
-        action = act_seq[step]
-        env.step(action)
 
+    frames = []
+    for t in range(end_idx):  # replay until the end of the desired window
+        action = act_seq[t]
+        obs, reward, terminated, truncated, info = env.step(action)
+
+        if t >= start_idx:
+            frame = env.render()
+            frames.append(frame)
+
+
+    env.close()
+
+    os.makedirs(output_path, exist_ok=True)
     save_video(
-        frames=env.render(),
+        frames=frames,
+        video_length=len(frames),
         video_folder=output_path,
         fps=24,
-        step_starting_index=start_idx,
-        video_length=end_idx - start_idx,
     )
-    env.close()
 
 def save_tensors(obs_seq_np, act_seq_np, output_path):
     obs_t = torch.from_numpy(obs_seq_np).float()
@@ -117,8 +126,8 @@ def process_pair(args):
     out_dir_1 = output_path / f"{iteration_idx}" / f"clip_{pair_idx}_1"
     out_dir_2 = output_path / f"{iteration_idx}" / f"clip_{pair_idx}_2"
 
-    generate_clip(trajectory_idx_1, obs_seq_1_np, act_seq_1_np, out_dir_1, start_idx_1, end_idx_1)
-    generate_clip(trajectory_idx_2, obs_seq_2_np, act_seq_2_np, out_dir_2, start_idx_2, end_idx_2)
+    generate_clip(trajectory_idx_1, act_seq_1_np, out_dir_1, start_idx_1, end_idx_1)
+    generate_clip(trajectory_idx_2, act_seq_2_np, out_dir_2, start_idx_2, end_idx_2)
 
     save_tensors(obs_seq_1_np[start_idx_1:end_idx_1],
                  act_seq_1_np[start_idx_1:end_idx_1],
