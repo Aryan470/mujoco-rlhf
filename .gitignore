@@ -2,4 +2,8 @@ node_modules/
 package-lock.json
 *.mp4
 *.MP4
-data/
+data*/
+logs*/
+*.log
+__pycache__/
+runs*/
