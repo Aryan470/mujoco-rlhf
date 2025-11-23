@@ -435,7 +435,7 @@ def train_reward_model(
     save_base_path: str = "models/checkpoints/reward_trained.pt",
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
     batch_size: int = 32,
-    num_epochs: int = 30,
+    num_epochs: int = 50,
     lr: float = 1e-4,
     weight_decay: float = 1e-4,
     phase: int = 1,
