@@ -323,14 +323,12 @@
       <div class="grade-options">
         <strong>Grade:</strong>
 
-        <!-- Line 1: Pair 1 better, Similar, Pair 2 better -->
         <div>
           <label><input type="radio" name="grade" value="pair1_better"> Pair 1 better</label>
           <label><input type="radio" name="grade" value="similar"> Similar</label>
           <label><input type="radio" name="grade" value="pair2_better"> Pair 2 better</label>
         </div>
 
-        <!-- Line 2: Not comparable, Ungraded -->
         <div style="margin-top: 4px;">
           <label><input type="radio" name="grade" value="not_comparable"> Not comparable</label>
           <label><input type="radio" name="grade" value="ungraded"> Ungraded</label>
@@ -405,9 +403,9 @@
     let currentBatchId = null;
     let currentBatchNumeric = null;
 
-    let allPairs = []; // full batch_i_results.pairs
-    let assignedPairs = []; // filtered for current user
-    let currentAssignedIdx = 0; // index in assignedPairs
+    let allPairs = [];
+    let assignedPairs = [];
+    let currentAssignedIdx = 0;
 
     let hasUnsavedChanges = false;
     let suppressStatusClear = false;
@@ -442,7 +440,6 @@
 
         batchInput.value = String(batchId);
 
-        // Filter assigned pairs: pair_id mod 3 == userIndex
         assignedPairs = allPairs
           .map((p, idx) => {
             const id = typeof p.pair_id === "number" ? p.pair_id : idx;
@@ -599,7 +596,6 @@
         if (ungradedRadio) ungradedRadio.checked = true;
       }
 
-      // Update unsaved state (will also disable save buttons if nothing changed)
       updateUnsavedState();
 
       mainStatus.textContent = "";
@@ -625,7 +621,6 @@
 
         const data = await res.json();
 
-        // Show panel if this batch is largest OR if there's a next batch to load
         if (!data.isLargest && !data.canLoadNext) {
           pipelinePanel.style.display = "none";
           return;
@@ -637,15 +632,12 @@
           `Batch ${currentBatchNumeric} (global max: ${data.maxBatch ?? "?"}) – ` +
           `completed: ${data.completed ? "yes" : "no"}.`;
 
-        // Retrain button
         retrainButton.disabled = !data.canRetrain;
         retrainButton.textContent = data.retrainDone ? "Retrain Triggered" : "Retrain Policy";
 
-        // Generate button
         generateButton.disabled = !data.canGenerate;
         generateButton.textContent = data.generateDone ? "Generate Triggered" : "Generate Clips";
 
-        // Load next batch button
         nextBatchButton.disabled = !data.canLoadNext;
       } catch (err) {
         console.error(err);
@@ -694,11 +686,9 @@
           throw new Error(data.error || "Failed to save grade");
         }
 
-        // Update local state
         p.grade = selected;
         allPairs[item.originalIndex].grade = selected;
 
-        // Refresh unsaved state + tabs
         updateUnsavedState();
         renderTabs();
 
@@ -721,7 +711,7 @@
     async function prefillLatestBatch() {
       try {
         const res = await fetch("/api/max-batch");
-        if (!res.ok) return; // silently ignore if none
+        if (!res.ok) return;
 
         const data = await res.json();
         if (typeof data.maxBatch === "number") {
@@ -908,13 +898,11 @@
       }
     });
 
-    // grade radio change => mark unsaved
     const gradeRadios = document.querySelectorAll('input[name="grade"]');
     gradeRadios.forEach((r) => {
       r.addEventListener("change", () => {
         updateUnsavedState();
 
-        // If we’re currently saving via keyboard (s/n), don’t clear the status
         if (suppressStatusClear) return;
 
         mainStatus.textContent = "";
@@ -924,14 +912,11 @@
 
 
 
-    // Keyboard shortcuts
-    // Keyboard shortcuts
   document.addEventListener("keydown", (e) => {
     const el = e.target;
     const tag = el.tagName;
     const type = el.type;
 
-    // Only block shortcuts when typing into text/number-like inputs or textareas
     const isEditable =
       tag === "TEXTAREA" ||
       el.isContentEditable ||
@@ -958,7 +943,6 @@
         radio.checked = true;
         updateUnsavedState();
 
-        // New change => clear "Saved."
         mainStatus.textContent = "";
         mainStatus.className = "status";
       }
@@ -983,7 +967,6 @@
             suppressStatusClear = false;
           });
       } else if (currentAssignedIdx < assignedPairs.length - 1) {
-        // If nothing to save, just go next
         forwardButton.click();
       }
     } else if (key === "arrowleft") {
@@ -1015,8 +998,6 @@
     }
   });
 
-
-    // Initialize theme on load
     applyThemeFromPreference();
     prefillLatestBatch();
   </script>

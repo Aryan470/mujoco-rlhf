@@ -1,11 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# ------------------------------------------------------------------
-# Script: train.sh
-# Purpose: Detect latest batch_i_results.json and retrain models
-#          via train_proc(phase_num) in train_policy.py
-# ------------------------------------------------------------------
 
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$BASE_DIR"
@@ -23,9 +18,7 @@ echo "Logfile:           $LOGFILE" | tee -a "$LOGFILE"
 echo "-----------------------------------------------------" | tee -a "$LOGFILE"
 echo "" | tee -a "$LOGFILE"
 
-# -----------------------------------------------------
-# Detect highest i such that data/metadata/batch_{i}_results.json exists
-# -----------------------------------------------------
+
 echo "[train.sh] Scanning for batch_*_results.json in data/metadata..." | tee -a "$LOGFILE"
 
 max_i=-1
@@ -54,9 +47,7 @@ echo "[train.sh] Using latest batch index i=$max_i" | tee -a "$LOGFILE"
 echo "[train.sh] Calling train_proc with phase_num=i+1=$phase" | tee -a "$LOGFILE"
 echo "" | tee -a "$LOGFILE"
 
-# -----------------------------------------------------
-# Run retraining using train_policy.train_proc
-# -----------------------------------------------------
+
 echo "[train.sh] Starting retrain via train_proc..." | tee -a "$LOGFILE"
 
 python3 -u - <<PY 2>&1 | tee -a "$LOGFILE"

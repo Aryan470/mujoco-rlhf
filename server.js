@@ -16,13 +16,10 @@ async function fileExists(p) {
 const app = express();
 const PORT = 6006;
 
-// ---- CONFIG ----
-const DATA_DIR = path.join(__dirname, "data/metadata"); // where batch_i.json live
-const CLIPS_DIR = path.join(__dirname, "data"); // where videos live
-// Singular pipeline log file
+const DATA_DIR = path.join(__dirname, "data/metadata");
+const CLIPS_DIR = path.join(__dirname, "data");
 const LOG_FILE = path.join(DATA_DIR, "pipeline_logs.json");
 
-// Ensure the pipeline log exists and load it
 async function loadPipelineLog() {
   try {
     const raw = await fs.readFile(LOG_FILE, "utf-8");
@@ -41,92 +38,79 @@ async function savePipelineLog(log) {
   await fs.writeFile(LOG_FILE, JSON.stringify(log, null, 2));
 }
 
-/**
- * Update the log based on the current detected filesystem state.
- * 
- * Logs are indexed by:
- *   log.batches[batchId].procedures[procedureType]
- *
- * procedureType ∈ { "grading", "retrain", "generate", "policy", "nextBatchJson" }
- */
-async function updatePipelineLog({
-  batchId,
-  completed,
-  isLargest,
-  hasPolicy,
-  hasNextBatchJson,
-  retrainFlagPath,
-  generateFlagPath,
-  retrainDone,
-  generateDone,
-  canRetrain,
-  canGenerate,
-  canLoadNext,
-  nextPolicyPath,
-  nextBatchJsonPath,
-}) {
-  const log = await loadPipelineLog();
-  const key = String(batchId);
-  const now = new Date().toISOString();
 
-  if (!log.batches[key]) {
-    log.batches[key] = {
-      lastUpdated: null,
-      procedures: {},
-    };
-  }
+// async function updatePipelineLog({
+//   batchId,
+//   completed,
+//   isLargest,
+//   hasPolicy,
+//   hasNextBatchJson,
+//   retrainFlagPath,
+//   generateFlagPath,
+//   retrainDone,
+//   generateDone,
+//   canRetrain,
+//   canGenerate,
+//   canLoadNext,
+//   nextPolicyPath,
+//   nextBatchJsonPath,
+// }) {
+//   const log = await loadPipelineLog();
+//   const key = String(batchId);
+//   const now = new Date().toISOString();
 
-  const batchEntry = log.batches[key];
-  batchEntry.lastUpdated = now;
-  batchEntry.procedures = batchEntry.procedures || {};
+//   if (!log.batches[key]) {
+//     log.batches[key] = {
+//       lastUpdated: null,
+//       procedures: {},
+//     };
+//   }
 
-  // Grading / completion status
-  batchEntry.procedures.grading = {
-    type: "grading",
-    completed,
-    isLargest,
-    lastChecked: now,
-  };
+//   const batchEntry = log.batches[key];
+//   batchEntry.lastUpdated = now;
+//   batchEntry.procedures = batchEntry.procedures || {};
 
-  // Retrain procedure
-  batchEntry.procedures.retrain = {
-    type: "retrain",
-    flagPath: retrainFlagPath,
-    flagExists: retrainDone,
-    canRetrain,
-    lastChecked: now,
-  };
+//   batchEntry.procedures.grading = {
+//     type: "grading",
+//     completed,
+//     isLargest,
+//     lastChecked: now,
+//   };
 
-  // Generate procedure
-  batchEntry.procedures.generate = {
-    type: "generate",
-    flagPath: generateFlagPath,
-    flagExists: generateDone,
-    canGenerate,
-    lastChecked: now,
-  };
+//   batchEntry.procedures.retrain = {
+//     type: "retrain",
+//     flagPath: retrainFlagPath,
+//     flagExists: retrainDone,
+//     canRetrain,
+//     lastChecked: now,
+//   };
 
-  // Policy checkpoint for next batch
-  batchEntry.procedures.policy = {
-    type: "policy",
-    policyPath: nextPolicyPath,
-    exists: hasPolicy,
-    lastChecked: now,
-  };
+//   batchEntry.procedures.generate = {
+//     type: "generate",
+//     flagPath: generateFlagPath,
+//     flagExists: generateDone,
+//     canGenerate,
+//     lastChecked: now,
+//   };
 
-  // Next batch metadata JSON
-  batchEntry.procedures.nextBatchJson = {
-    type: "nextBatchJson",
-    jsonPath: nextBatchJsonPath,
-    exists: hasNextBatchJson,
-    canLoadNext,
-    lastChecked: now,
-  };
+//   batchEntry.procedures.policy = {
+//     type: "policy",
+//     policyPath: nextPolicyPath,
+//     exists: hasPolicy,
+//     lastChecked: now,
+//   };
 
-  await savePipelineLog(log);
-}
+//   batchEntry.procedures.nextBatchJson = {
+//     type: "nextBatchJson",
+//     jsonPath: nextBatchJsonPath,
+//     exists: hasNextBatchJson,
+//     canLoadNext,
+//     lastChecked: now,
+//   };
 
-// Ensure there's an entry for this batch in the log
+//   await savePipelineLog(log);
+// }
+
 async function getPipelineEntry(batchId) {
   const log = await loadPipelineLog();
   const key = String(batchId);
@@ -138,7 +122,6 @@ async function getPipelineEntry(batchId) {
       status: null,
     };
   } else {
-    // Backfill fields if missing
     if (!log.batches[key].retrain) {
       log.batches[key].retrain = {
         triggered: false,
@@ -176,7 +159,6 @@ async function markGenerateTriggered(batchId) {
   await savePipelineLog(log);
 }
 
-// Called by /api/pipeline-state to snapshot current filesystem-based status
 async function updatePipelineStatus(batchId, status) {
   const now = new Date().toISOString();
   const { log, entry } = await getPipelineEntry(batchId);
@@ -186,19 +168,15 @@ async function updatePipelineStatus(batchId, status) {
 
 app.use(express.json());
 
-// Serve static frontend
 app.use(express.static(path.join(__dirname, "public")));
 
-// Serve data and clip folders statically so the browser can load JSON/videos
 app.use("/data/metadata", express.static(DATA_DIR));
 app.use("/data", express.static(CLIPS_DIR));
 
-// Utility: ensure batch_i_results.json exists and is up-to-date
 async function ensureResults(batchId) {
   const batchFile = path.join(DATA_DIR, `batch_${batchId}.json`);
   const resultsFile = path.join(DATA_DIR, `batch_${batchId}_results.json`);
 
-  // Read base batch file
   let batchRaw;
   try {
     batchRaw = await fs.readFile(batchFile, "utf-8");
@@ -215,7 +193,6 @@ async function ensureResults(batchId) {
     const resultsRaw = await fs.readFile(resultsFile, "utf-8");
     results = JSON.parse(resultsRaw);
   } catch (err) {
-    // If results file doesn't exist, create from batch with grades = "ungraded"
     if (err.code === "ENOENT") {
       results = {
         batch_id: batch.batch_id,
@@ -236,7 +213,6 @@ async function ensureResults(batchId) {
     }
   }
 
-  // Make sure every pair has a grade, in case batch file was updated
   let updated = false;
   const pairMap = new Map();
   results.pairs.forEach((p, idx) => {
@@ -261,12 +237,10 @@ async function ensureResults(batchId) {
     }
   });
 
-  // Determine if all pairs are graded (no "ungraded")
   const completed =
     mergedPairs.length > 0 &&
     mergedPairs.every((p) => p.grade && p.grade !== "ungraded");
 
-  // If completed changed or pairs were updated, rewrite the file
   if (!results || results.completed !== completed) {
     updated = true;
   }
@@ -279,7 +253,6 @@ async function ensureResults(batchId) {
     };
     await fs.writeFile(resultsFile, JSON.stringify(results, null, 2));
   } else {
-    // Ensure the in-memory object has the completed flag even if we didn't rewrite
     results.completed = completed;
   }
 
@@ -287,7 +260,6 @@ async function ensureResults(batchId) {
 
 }
 
-// GET /api/batch/:batchId -> returns batch_i_results.json (created/updated if needed)
 app.get("/api/batch/:batchId", async (req, res) => {
   const batchId = req.params.batchId;
   try {
@@ -299,7 +271,6 @@ app.get("/api/batch/:batchId", async (req, res) => {
   }
 });
 
-// GET /api/max-batch -> scan DATA_DIR for batch_*.json and return highest batch index
 app.get("/api/max-batch", async (req, res) => {
   try {
     const files = await fs.readdir(DATA_DIR);
@@ -327,7 +298,6 @@ app.get("/api/max-batch", async (req, res) => {
   }
 });
 
-// Pipeline state for a given base batch
 app.get("/api/pipeline-state/:batchId", async (req, res) => {
   const batchId = Number(req.params.batchId);
   if (Number.isNaN(batchId)) {
@@ -335,7 +305,6 @@ app.get("/api/pipeline-state/:batchId", async (req, res) => {
   }
 
   try {
-    // 1) Find global max batch
     const files = await fs.readdir(DATA_DIR);
     const batchRegex = /^batch_(\d+)\.json$/;
     let maxBatch = null;
@@ -351,7 +320,6 @@ app.get("/api/pipeline-state/:batchId", async (req, res) => {
 
     const isLargest = maxBatch !== null && batchId === maxBatch;
 
-    // 2) Load results to see if completed
     let completed = false;
     try {
       const results = await ensureResults(batchId);
@@ -360,12 +328,10 @@ app.get("/api/pipeline-state/:batchId", async (req, res) => {
       completed = false;
     }
 
-    // 3) Read "already triggered" state from central JSON
     const { entry } = await getPipelineEntry(batchId);
     const retrainDone = !!(entry.retrain && entry.retrain.triggered);
     const generateDone = !!(entry.generate && entry.generate.triggered);
 
-    // 4) Check for next policy + next batch json (based on current batchId)
     const nextPolicyPath = path.join(
       __dirname,
       "data",
@@ -379,12 +345,10 @@ app.get("/api/pipeline-state/:batchId", async (req, res) => {
     const hasPolicy = await fileExists(nextPolicyPath);
     const hasNextBatchJson = await fileExists(nextBatchJsonPath);
 
-    // 5) Gating – logic is unchanged, just no .flag files anymore
     const canRetrain = isLargest && completed && !retrainDone;
     const canGenerate = isLargest && hasPolicy && !generateDone;
     const canLoadNext = hasNextBatchJson; // we allow this even if not largest anymore
 
-    // 6) Update the single JSON log based on what we just detected
     await updatePipelineStatus(batchId, {
       maxBatch,
       isLargest,
@@ -419,7 +383,6 @@ app.get("/api/pipeline-state/:batchId", async (req, res) => {
 });
 
 
-// Trigger train.sh once for a batch (global across all clients)
 app.post("/api/retrain", async (req, res) => {
   const { batchId } = req.body || {};
   const base = Number(batchId);
@@ -430,7 +393,6 @@ app.post("/api/retrain", async (req, res) => {
   const scriptPath = path.join(__dirname, "train.sh");
 
   try {
-    // Don't allow more than once per batch, using central log
     const { entry } = await getPipelineEntry(base);
     if (entry.retrain && entry.retrain.triggered) {
       return res
@@ -438,7 +400,6 @@ app.post("/api/retrain", async (req, res) => {
         .json({ error: "Retrain already triggered for this batch" });
     }
 
-    // Fire-and-forget train.sh
     execFile(scriptPath, { cwd: __dirname }, (err, stdout, stderr) => {
       if (err) {
         console.error("train.sh error:", err);
@@ -459,7 +420,6 @@ app.post("/api/retrain", async (req, res) => {
 
 
 
-// Trigger generate.sh once for a batch (global)
 app.post("/api/generate-clips", async (req, res) => {
   const { batchId } = req.body || {};
   const base = Number(batchId);
@@ -477,7 +437,6 @@ app.post("/api/generate-clips", async (req, res) => {
         .json({ error: "Generate already triggered for this batch" });
     }
 
-    // Fire-and-forget generate.sh
     execFile(scriptPath, { cwd: __dirname }, (err, stdout, stderr) => {
       if (err) {
         console.error("generate.sh error:", err);
@@ -497,8 +456,6 @@ app.post("/api/generate-clips", async (req, res) => {
 });
 
 
-// POST /api/batch/:batchId/pair/:pairId/grade
-// Body: { grade: "pair1_better" | "pair2_better" | "similar" | "not_comparable" | "ungraded" }
 app.post("/api/batch/:batchId/pair/:pairId/grade", async (req, res) => {
   const batchId = req.params.batchId;
   const pairIdParam = req.params.pairId;
@@ -519,10 +476,8 @@ app.post("/api/batch/:batchId/pair/:pairId/grade", async (req, res) => {
   const resultsFile = path.join(DATA_DIR, `batch_${batchId}_results.json`);
 
   try {
-    // Ensure results file exists and is synced
     const results = await ensureResults(batchId);
 
-    // Find pair by pair_id, fallback to index
     const numericPairId = Number(pairIdParam);
     let targetIdx = results.pairs.findIndex(
       (p, idx) =>
@@ -530,7 +485,6 @@ app.post("/api/batch/:batchId/pair/:pairId/grade", async (req, res) => {
         (isNaN(numericPairId) && idx.toString() === pairIdParam)
     );
     if (targetIdx === -1 && !isNaN(numericPairId)) {
-      // fallback: try index-based
       if (
         numericPairId >= 0 &&
         numericPairId < results.pairs.length
@@ -543,7 +497,6 @@ app.post("/api/batch/:batchId/pair/:pairId/grade", async (req, res) => {
     }
 
     results.pairs[targetIdx].grade = grade;
-    // Recompute completed: true if no pair is "ungraded"
     const completed =
       results.pairs.length > 0 &&
       results.pairs.every((p) => p.grade && p.grade !== "ungraded");

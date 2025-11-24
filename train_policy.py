@@ -74,8 +74,6 @@ def init_and_save_reward_model(
 
 def load_policy_model(
     checkpoint_path: str = "data/models/checkpoints/untrained_policy.pt",
-    reward_checkpoint_path: str = "data/models/checkpoints/TRPO_reward_model.pt",
-    output_path: str = "data/models/checkpoints/TRPO_trained_policy.pt",
     device: str = "cuda" if torch.cuda.is_available() else "cpu",
 ):
     checkpoint = torch.load(checkpoint_path, map_location=device)
@@ -233,7 +231,7 @@ def train_policy_model(
     print(f"TensorBoard logging to: {log_dir}")
 
 
-    env = gym.make("Hopper-v5", render_mode=None)
+    env = gym.make("Hopper-v5", render_mode=None, terminate_when_unhealthy=False)
     obs, info = env.reset(seed=0)
 
     for it in range(num_iters):

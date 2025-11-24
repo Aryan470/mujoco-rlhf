@@ -1,10 +1,6 @@
 #!/bin/bash
 set -euo pipefail
 
-# ------------------------------------------------------------------
-# Script: generate.sh
-# Purpose: Infer latest phase and generate new clips using generate_clips.py
-# ------------------------------------------------------------------
 
 BASE_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$BASE_DIR"
@@ -22,10 +18,7 @@ echo "Logfile:           $LOGFILE" | tee -a "$LOGFILE"
 echo "-----------------------------------------------------" | tee -a "$LOGFILE"
 echo "" | tee -a "$LOGFILE"
 
-# -----------------------------------------------------
-# Detect highest i such that data/metadata/batch_{i}_results.json exists
-# We will generate clips for phase = i + 1
-# -----------------------------------------------------
+
 echo "[generate.sh] Scanning for batch_*_results.json in data/metadata..." | tee -a "$LOGFILE"
 
 max_i=-1
@@ -55,7 +48,6 @@ echo "[generate.sh] Latest labeled batch index i=$max_i" | tee -a "$LOGFILE"
 echo "[generate.sh] Will generate clips for phase (iteration_idx) = i+1 = $phase" | tee -a "$LOGFILE"
 echo "" | tee -a "$LOGFILE"
 
-# Optional sanity check: make sure models for this phase exist
 if [[ ! -f "$BASE_DIR/data/$phase/models/checkpoints/policy.pt" ]] \
    || [[ ! -f "$BASE_DIR/data/$phase/models/checkpoints/reward.pt" ]]; then
     echo "[generate.sh] ERROR: Expected trained models not found for phase $phase." | tee -a "$LOGFILE"
@@ -66,12 +58,7 @@ if [[ ! -f "$BASE_DIR/data/$phase/models/checkpoints/policy.pt" ]] \
     exit 1
 fi
 
-# -----------------------------------------------------
-# Run generate_clips.py for this phase
-# generate_clips.py expects:
-#   --base_path  (we use 'data')
-#   --iteration_idx (the phase number)
-# -----------------------------------------------------
+
 echo "[generate.sh] Generating new clips with generate_clips.py --base_path data --iteration_idx $phase" | tee -a "$LOGFILE"
 
 python3 -u generate_clips.py \
