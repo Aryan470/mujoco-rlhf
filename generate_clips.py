@@ -47,7 +47,7 @@ def generate_trajectories(policy_model: PolicyModel, reward_model: RewardModel, 
     return trajectories
 
 def select_pairs(trajectories, reward_model, num_pairs: int, device: torch.device):
-    num_candidate_pairs = num_pairs * 10  # currently unused, but fine
+    num_candidate_pairs = num_pairs * 10
     output_pairs = []
     k = 70
 
@@ -63,7 +63,6 @@ def select_pairs(trajectories, reward_model, num_pairs: int, device: torch.devic
         start_idx_2 = random.randint(0, obs_seq_2_np.shape[0] - k)
         end_idx_2 = start_idx_2 + k
 
-        # Convert segments to tensors here
         obs_segment_1 = torch.from_numpy(obs_seq_1_np[start_idx_1:end_idx_1]).float().to(device)
         act_segment_1 = torch.from_numpy(act_seq_1_np[start_idx_1:end_idx_1]).float().to(device)
         obs_segment_2 = torch.from_numpy(obs_seq_2_np[start_idx_2:end_idx_2]).float().to(device)
@@ -81,7 +80,7 @@ def select_pairs(trajectories, reward_model, num_pairs: int, device: torch.devic
              preference_variance)
         )
 
-    output_pairs.sort(key=lambda x: x[-1], reverse=True)  # or keep ascending if you really want low variance
+    output_pairs.sort(key=lambda x: x[-1], reverse=True)
     return output_pairs[:num_pairs]
 
 
@@ -90,7 +89,7 @@ def generate_clip(trajectory_idx, act_seq, output_path, start_idx, end_idx):
     env.reset(seed=trajectory_idx)
 
     frames = []
-    for t in range(end_idx):  # replay until the end of the desired window
+    for t in range(end_idx):
         action = act_seq[t]
         obs, reward, terminated, truncated, info = env.step(action)
 
@@ -161,9 +160,9 @@ def render_and_save_pairs(iteration_idx, output_path, trajectories, pairs):
         for pair_idx, pair in enumerate(pairs)
     ]
 
-    # Optional: cap processes to something smaller to further reduce FD pressure
+    # cap processes to reduce FD pressure
     num_procs = max(1, multiprocessing.cpu_count() - 4)
-    num_procs = min(num_procs, 8)  # hard cap if you like
+    num_procs = min(num_procs, 8)
 
     with multiprocessing.Pool(processes=num_procs) as pool:
         metadata = pool.map(process_pair, arg_list)

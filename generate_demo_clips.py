@@ -36,7 +36,7 @@ def generate_clip(clip_idx, policy_model, output_path, max_steps, device):
         fps=24,
     )
 
-def main(base_path: pathlib.Path, iteration_idx: int):
+def main(base_path: pathlib.Path, iteration_idx: int, num_clips: int = 5):
     max_steps = 24 * 50
     # load the policy model and reward model
     print(f"Loading models from {base_path / 'models'}")
@@ -45,12 +45,13 @@ def main(base_path: pathlib.Path, iteration_idx: int):
     policy_model.to(device)
 
     # generate 5 clips
-    for clip_idx in range(1):
-        generate_clip(clip_idx, policy_model, base_path / f"{iteration_idx}" / "clips", max_steps, device)
+    for clip_idx in range(num_clips):
+        generate_clip(clip_idx, policy_model, base_path / f"{iteration_idx}" / "clips" / f"clip_{clip_idx}", max_steps, device)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_path", type=pathlib.Path, required=True)
     parser.add_argument("--iteration_idx", type=int, required=True)
+    parser.add_argument("--num_clips", type=int, required=False, default=20)
     args = parser.parse_args()
-    main(args.base_path, args.iteration_idx)
+    main(args.base_path, args.iteration_idx, args.num_clips)
